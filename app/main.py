@@ -1,11 +1,20 @@
 from fastapi import FastAPI
 from app.routes import raster
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+app = FastAPI(title="MapStore GDAL Backend")
 
-# Registrar las rutas del módulo raster
-app.include_router(raster.router, prefix="/api/v1/raster", tags=["Raster Operations"])
+# Habilitar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permitir todas las solicitudes. Puedes cambiarlo por ["http://localhost:8081"]
+    allow_credentials=True,
+    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, PUT, DELETE)
+    allow_headers=["*"],  # Permitir todos los encabezados
+)
+
+app.include_router(raster.router, prefix="/api", tags=["Raster Processing"])
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to MapStore GDAL Backend"}
+    return {"message": "GDAL API funcionando 🚀"}
