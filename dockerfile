@@ -1,22 +1,33 @@
-# Usa una imagen base oficial de Python
-FROM osgeo/gdal:3.8.4
+# Usar Python como imagen base
+FROM python:3.10
 
-# Establecer el directorio de trabajo dentro del contenedor
+# Instalar dependencias del sistema necesarias para GDAL
+RUN apt-get update && apt-get install -y \
+    gdal-bin libgdal-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Configurar GDAL en variables de entorno
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+ENV GDAL_DATA=/usr/share/gdal
+ENV PROJ_LIB=/usr/share/proj
+
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar los archivos del proyecto al contenedor
-COPY . .
+# Copiar el archivo de dependencias
+COPY requirements.txt .
 
-# Instalar dependencias del sistema
-RUN apt-get update && apt-get install -y \
-    python3-pip python3.10 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Instalar dependencias de Python
+# Instalar pip y las dependencias del backend (incluyendo GDAL desde pip)
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir gdal==3.6.2
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Exponer el puerto en el que corre FastAPI
-EXPOSE 8000
+# Verificar la versión de GDAL instalada en Python
+RUN python3 -c "from osgeo import gdal; print(gdal.__version__)"
 
-# Comando para ejecutar la aplicación
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Copiar el código fuente
+COPY . .
+
+# Especificar el comando para iniciar la aplicación
+CMD ["python", "main.py"]
