@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
 from typing import List
 import os
@@ -8,8 +8,19 @@ router = APIRouter()
 
 UPLOAD_FOLDER = "app/temp"
 
+def cleanup_files(files: List[str]):
+    """ Elimina los archivos temporales después de la respuesta """
+    try:
+        for file_path in files:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        print(f"🗑️ Archivos temporales eliminados: {files}")
+    except Exception as e:
+        print(f"⚠️ Advertencia: No se pudieron eliminar algunos archivos: {e}")
+
 @router.post("/process_rasters/")
 async def process_rasters_api(
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     multipliers: List[float] = Form(...)
 ):
@@ -37,6 +48,11 @@ async def process_rasters_api(
     # Verificar que el archivo realmente se creó antes de devolverlo
     if not os.path.exists(output_path):
         return {"error": "Error al generar el archivo TIFF"}
+
+    print(f"✅ Archivo TIFF generado correctamente: {output_path}")
+
+    # Agregar limpieza de archivos en segundo plano
+    background_tasks.add_task(cleanup_files, input_paths + [output_path])
 
     # 🔹 **Devolver el archivo resultante**
     return FileResponse(

@@ -1,10 +1,13 @@
-# Usar Python como imagen base
+# Usa Python como imagen base
 FROM python:3.10
 
 # Instalar dependencias del sistema necesarias para GDAL
 RUN apt-get update && apt-get install -y \
-    gdal-bin libgdal-dev \
+    gdal-bin libgdal-dev python3-gdal \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Verificar la instalación del sistema
+RUN gdalinfo --version
 
 # Configurar GDAL en variables de entorno
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
@@ -18,9 +21,11 @@ WORKDIR /app
 # Copiar el archivo de dependencias
 COPY requirements.txt .
 
-# Instalar pip y las dependencias del backend (incluyendo GDAL desde pip)
+# ❌ **Eliminar GDAL de requirements.txt antes de instalar**
+RUN sed -i '/GDAL/d' requirements.txt
+
+# Instalar pip y las dependencias del backend (sin instalar GDAL desde pip)
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir gdal==3.6.2
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Verificar la versión de GDAL instalada en Python
@@ -30,4 +35,4 @@ RUN python3 -c "from osgeo import gdal; print(gdal.__version__)"
 COPY . .
 
 # Especificar el comando para iniciar la aplicación
-CMD ["python", "main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
