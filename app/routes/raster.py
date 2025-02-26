@@ -47,10 +47,18 @@ async def procesar_rasters(
         # **Procesar las capas raster**
         result_path = process_rasters_from_arrays(raster_arrays, multipliers, metadata, output_path)
 
+        # **Enviar el archivo y eliminarlo después**
+        response = FileResponse(result_path, media_type="image/tiff", filename="resultado.tif")
+
     finally:
         # **Eliminar archivos temporales**
         for temp_file in temp_files + resized_files:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
 
-    return FileResponse(result_path, media_type="image/tiff", filename="resultado.tif")
+    # **Eliminar el archivo de salida después de enviarlo**
+    try:
+        yield response
+    finally:
+        if os.path.exists(output_path):
+            os.remove(output_path)
