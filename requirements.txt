@@ -3,7 +3,7 @@ anyio==4.8.0
 click==8.1.8
 exceptiongroup==1.2.2
 fastapi==0.115.8
-GDAL==3.6.2
+GDAL==3.9.3
 h11==0.14.0
 idna==3.10
 numpy==1.24.3
