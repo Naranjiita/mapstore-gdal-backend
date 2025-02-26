@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
 import shutil
 import os
@@ -6,10 +6,16 @@ from app.services.gdal_operations import load_raster_as_array, process_rasters_f
 
 router = APIRouter()
 
+def remove_file(file_path: str):
+    """Elimina un archivo si existe."""
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
 @router.post("/procesar_rasters/")
 async def procesar_rasters(
     files: list[UploadFile] = File(...),
-    multipliers: str = Form(...)
+    multipliers: str = Form(...),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     output_path = "output_result.tif"
     temp_files = []
@@ -47,18 +53,13 @@ async def procesar_rasters(
         # **Procesar las capas raster**
         result_path = process_rasters_from_arrays(raster_arrays, multipliers, metadata, output_path)
 
-        # **Enviar el archivo y eliminarlo después**
-        response = FileResponse(result_path, media_type="image/tiff", filename="resultado.tif")
-
     finally:
         # **Eliminar archivos temporales**
         for temp_file in temp_files + resized_files:
             if os.path.exists(temp_file):
                 os.remove(temp_file)
 
-    # **Eliminar el archivo de salida después de enviarlo**
-    try:
-        yield response
-    finally:
-        if os.path.exists(output_path):
-            os.remove(output_path)
+    # **Programar la eliminación del archivo de salida después de enviarlo**
+    background_tasks.add_task(remove_file, output_path)
+
+    return FileResponse(result_path, media_type="image/tiff", filename="resultado.tif")
