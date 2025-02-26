@@ -1,13 +1,13 @@
 import requests
 
-url = "http://127.0.0.1:8000/api/process_rasters/"
+url = "http://192.168.1.20:8000/api/process_rasters/"
 
 # Lista de archivos a enviar
 files = [
-    ("files", open("/home/desarrollo/Documentos/Proyectos_Qgis/Capas_Raster/capa_uso_suelo/v2_1.tif", "rb")),
-    ("files", open("/home/desarrollo/Documentos/Proyectos_Qgis/Capas_Raster/capa_uso_suelo/v2_2.tif", "rb")),
-    ("files", open("/home/desarrollo/Documentos/Proyectos_Qgis/Capas_Raster/capa_uso_suelo/v2_3.tif", "rb")),
-    ("files", open("/home/desarrollo/Documentos/Proyectos_Qgis/Capas_Raster/capa_uso_suelo/v2_4.tif", "rb")),
+    ("files", open("D:/emily/Documents/capas_investigacion/Capa_Uso_Suelo/v2_1.tif", "rb")),
+    ("files", open("D:/emily/Documents/capas_investigacion/Capa_Uso_Suelo/v2_2.tif", "rb")),
+    ("files", open("D:/emily/Documents/capas_investigacion/Capa_Uso_Suelo/v2_3.tif", "rb")),
+    ("files", open("D:/emily/Documents/capas_investigacion/Capa_Uso_Suelo/v2_4.tif", "rb")),
 ]
 
 # Multiplicadores (FastAPI espera listas en `multipart/form-data` enviadas como strings separados)
@@ -26,7 +26,7 @@ for f in files:
 # Verificar respuesta
 if response.status_code == 200:
     # Guardar el archivo TIFF devuelto por la API
-    with open("/home/desarrollo/Documentos/Proyectos_Qgis/Capas_Raster/capa_uso_suelo/resultado_v4.tif", "wb") as f:
+    with open("D:/emily/Documents/capas_investigacion/Capa_Uso_Suelo/resultado_v3_test.tif", "wb") as f:
         f.write(response.content)
     print("✅ Archivo TIFF guardado en: resultado_v2.tif")
 else:

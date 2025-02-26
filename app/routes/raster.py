@@ -1,62 +1,46 @@
-from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import FileResponse
-from typing import List
+import shutil
 import os
-from app.services.gdal_operations import process_rasters
+from app.utils.gdal_operations import load_raster_as_array, process_rasters_from_arrays
 
 router = APIRouter()
 
-UPLOAD_FOLDER = "app/temp"
-
-def cleanup_files(files: List[str]):
-    """ Elimina los archivos temporales después de la respuesta """
-    try:
-        for file_path in files:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        print(f"🗑️ Archivos temporales eliminados: {files}")
-    except Exception as e:
-        print(f"⚠️ Advertencia: No se pudieron eliminar algunos archivos: {e}")
-
-@router.post("/process_rasters/")
-async def process_rasters_api(
-    background_tasks: BackgroundTasks,
-    files: List[UploadFile] = File(...),
-    multipliers: List[float] = Form(...)
+@router.post("/procesar_rasters/")
+async def procesar_rasters(
+    files: list[UploadFile] = File(...),
+    multipliers: str = Form(...)
 ):
-    """
-    Servicio que recibe capas raster, las multiplica, las suma y devuelve el archivo TIFF resultante.
-    """
+    output_path = "output_result.tif"
+    temp_files = []
 
-    if len(files) != len(multipliers):
-        return {"error": "El número de archivos y multiplicadores debe ser el mismo"}
-
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-    input_paths = []
+    # Guardar archivos temporalmente
     for file in files:
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        with open(file_path, "wb") as f:
-            f.write(await file.read())
-        input_paths.append(file_path)
+        temp_path = f"temp_{file.filename}"
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        temp_files.append(temp_path)
 
-    output_path = os.path.join(UPLOAD_FOLDER, "result_backendAPi.tif")
+    raster_arrays = []
+    metadata = None
 
-    # Procesar los rásteres
-    process_rasters(input_paths, output_path, multipliers)
+    # Cargar rasters en memoria
+    for i, temp_path in enumerate(temp_files):
+        array, meta = load_raster_as_array(temp_path)
+        raster_arrays.append(array)
 
-    # Verificar que el archivo realmente se creó antes de devolverlo
-    if not os.path.exists(output_path):
-        return {"error": "Error al generar el archivo TIFF"}
+        # Tomar los metadatos de la primera capa
+        if i == 0:
+            metadata = meta
 
-    print(f"✅ Archivo TIFF generado correctamente: {output_path}")
+    # Convertir multiplicadores de string a lista de float
+    multipliers = list(map(float, multipliers.split(",")))
 
-    # Agregar limpieza de archivos en segundo plano
-    background_tasks.add_task(cleanup_files, input_paths + [output_path])
+    # Procesar las capas raster
+    result_path = process_rasters_from_arrays(raster_arrays, multipliers, metadata, output_path)
 
-    # 🔹 **Devolver el archivo resultante**
-    return FileResponse(
-        path=output_path,
-        media_type="image/tiff",
-        filename="raster_resultado_MS.tif"
-    )
+    # Eliminar archivos temporales
+    for temp_file in temp_files:
+        os.remove(temp_file)
+
+    return FileResponse(result_path, media_type="image/tiff", filename="resultado.tif")

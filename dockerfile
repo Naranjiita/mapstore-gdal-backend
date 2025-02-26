@@ -2,8 +2,8 @@
 FROM python:3.10
 
 # Instalar dependencias del sistema necesarias para GDAL
-RUN apt-get update && apt-get install -y \
-    gdal-bin libgdal-dev python3-gdal \
+RUN apt-get update && apt-get install -y /
+    gdal-bin libgdal-dev python3-gdal /
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Verificar la instalación del sistema

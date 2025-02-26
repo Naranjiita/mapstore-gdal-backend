@@ -8,7 +8,6 @@ app = FastAPI(title="MapStore GDAL Backend")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Permitir todas las solicitudes. Puedes cambiarlo por ["http://localhost:8081"]
-    allow_credentials=True,
     allow_methods=["*"],  # Permitir todos los métodos (GET, POST, PUT, DELETE)
     allow_headers=["*"],  # Permitir todos los encabezados
 )
