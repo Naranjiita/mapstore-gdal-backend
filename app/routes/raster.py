@@ -39,7 +39,7 @@ async def process_rasters_api(
     output_path = os.path.join(UPLOAD_FOLDER, "result_backendAPi.tif")
 
     # Procesar los rásteres con la lista convertida
-    process_rasters(input_paths, output_path, multipliers_list)
+    process_rasters(input_paths, multipliers_list)
 
     if not os.path.exists(output_path):
         return {"error": "Error al generar el archivo TIFF"}
