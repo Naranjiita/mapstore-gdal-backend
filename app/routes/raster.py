@@ -6,6 +6,9 @@ from app.services.gdal_operations import process_rasters
 
 router = APIRouter()
 
+UPLOAD_FOLDER = "app/temp"  # Definir la carpeta de almacenamiento
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Crear si no existe
+
 @router.post("/process_rasters/")
 async def process_rasters_api(
     files: List[UploadFile] = File(...),
@@ -26,8 +29,6 @@ async def process_rasters_api(
     if len(files) != len(multipliers_list):
         return {"error": "El número de archivos y multiplicadores debe ser el mismo."}
 
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
     input_paths = []
     for file in files:
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
@@ -42,6 +43,10 @@ async def process_rasters_api(
 
     if not os.path.exists(output_path):
         return {"error": "Error al generar el archivo TIFF"}
+    
+    # **Eliminar archivos temporales** (solo los de entrada, no el resultado)
+    for file_path in input_paths:
+        os.remove(file_path)
 
     return FileResponse(
         path=output_path,
