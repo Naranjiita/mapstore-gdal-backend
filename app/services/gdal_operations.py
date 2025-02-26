@@ -19,6 +19,30 @@ def load_raster_as_array(file_path):
 
     return array, metadata
 
+def resize_and_reproject_raster(input_path, reference_metadata, output_path):
+    """
+    Ajusta la capa raster al CRS, resolución y dimensiones de la capa de referencia.
+    """
+    dataset = gdal.Open(input_path)
+    
+    # Si el CRS no coincide, reproyectamos
+    if dataset.GetProjection() != reference_metadata["crs"]:
+        dataset = gdal.Warp(output_path, dataset, dstSRS=reference_metadata["crs"], resampleAlg=gdal.GRA_NearestNeighbour)
+    
+    # Si la resolución o el tamaño no coinciden, ajustamos dimensiones
+    if dataset.RasterXSize != reference_metadata["dimensions"][1] or dataset.RasterYSize != reference_metadata["dimensions"][0]:
+        xmin, ymax = reference_metadata["transform"][0], reference_metadata["transform"][3]
+        xmax = xmin + reference_metadata["dimensions"][1] * reference_metadata["transform"][1]
+        ymin = ymax + reference_metadata["dimensions"][0] * reference_metadata["transform"][5]
+
+        dataset = gdal.Warp(
+            output_path, dataset, width=reference_metadata["dimensions"][1], height=reference_metadata["dimensions"][0],
+            outputBounds=(xmin, ymin, xmax, ymax), resampleAlg=gdal.GRA_NearestNeighbour, dstNodata=255
+        )
+    
+    return output_path  # Devolvemos la nueva ruta con el raster ajustado
+
+
 def process_rasters_from_arrays(raster_arrays, multipliers, metadata, output_path):
     """
     Procesa una lista de capas raster representadas como arrays de NumPy y guarda el resultado como GeoTIFF.
@@ -32,8 +56,10 @@ def process_rasters_from_arrays(raster_arrays, multipliers, metadata, output_pat
         array = raster_arrays[i]
         multiplier = multipliers[i]
 
+        # **Multiplicar sin modificar NoData**
         processed_array = np.where(array == nodata_value, nodata_value, array * multiplier)
 
+        # **Sumar sin modificar NoData**
         sum_array = np.where(
             (sum_array == nodata_value) | (processed_array == nodata_value),
             nodata_value,

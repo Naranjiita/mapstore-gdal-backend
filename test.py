@@ -26,7 +26,7 @@ for f in files:
 # Verificar respuesta
 if response.status_code == 200:
     # Guardar el archivo TIFF devuelto por la API
-    with open("D:/emily/Documents/capas_investigacion/Capa_Uso_Suelo/resultado_v3_test.tif", "wb") as f:
+    with open("D:/emily/Documents/capas_investigacion/Capa_Uso_Suelo/v2_test.tif", "wb") as f:
         f.write(response.content)
     print("✅ Archivo TIFF guardado en: resultado_v2.tif")
 else:
