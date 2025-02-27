@@ -69,25 +69,28 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
         print(f"❌ Error al ajustar dimensiones de {input_path}.")
         return input_path
 
+# 📌 Carpeta temporal para archivos alineados
+ALIGNED_FOLDER = "app/temp_aligned"
+os.makedirs(ALIGNED_FOLDER, exist_ok=True)  # Asegurar que la carpeta exista al iniciar
+
 def check_and_align_rasters(input_paths: List[str]) -> List[str]:
     """
-    Lee la primera capa como referencia e imprime:
-      - Dimensiones (width x height)
-      - CRS (proyección)
-    Luego compara las capas restantes para ver si coinciden en CRS y dimensiones.
-    Si no coinciden, las ajusta y devuelve la lista de rutas de los archivos corregidos.
+    📌 Verifica y alinea los rásters en cuanto a:
+    - CRS
+    - Dimensiones
+    Si hay diferencias, crea nuevas versiones alineadas en `temp_aligned/`.
     """
+
     if not input_paths:
         print("❌ No se han proporcionado rutas de entrada.")
         return []
 
-    # Abrir la primera capa como referencia
     ref_ds = gdal.Open(input_paths[0])
     if not ref_ds:
         print(f"❌ Error al abrir el archivo base: {input_paths[0]}")
         return []
 
-    ref_proj = ref_ds.GetProjection()      # CRS de referencia
+    ref_proj = ref_ds.GetProjection()
     ref_transform = ref_ds.GetGeoTransform()
     ref_width = ref_ds.RasterXSize
     ref_height = ref_ds.RasterYSize
@@ -96,41 +99,30 @@ def check_and_align_rasters(input_paths: List[str]) -> List[str]:
     print(f"   Dimensiones: {ref_width} x {ref_height}")
     print(f"   CRS: {ref_proj}")
 
-    corrected_paths = [input_paths[0]]  # La primera capa ya es la referencia
-
-    # Verificar y ajustar las demás capas
-    for path in input_paths[1:]:
+    aligned_paths = []
+    for path in input_paths:
         ds = gdal.Open(path)
         if not ds:
             print(f"❌ Error al abrir el archivo {path}")
             continue
 
+        aligned_path = path  # Se usará el original si no necesita ajustes
+        temp_path = os.path.join(ALIGNED_FOLDER, os.path.basename(path).replace(".tif", "_aligned.tif"))
+
         proj = ds.GetProjection()
         width = ds.RasterXSize
         height = ds.RasterYSize
+        current_transform = ds.GetGeoTransform()
 
-        print(f"🔎 Verificando {path} ...")
-        print(f"   Dimensiones: {width} x {height}")
-        print(f"   CRS: {proj}")
-
-        # Inicializamos la ruta alineada con la original
-        aligned_path = path
-        temp_path = f"{path}_aligned.tif"
-
-        # Reproyectar si el CRS difiere
         if proj != ref_proj:
-            print(f"⚠️  El CRS de {path} difiere del raster base. Reproyectando...")
+            print(f"⚠️  El CRS de {path} difiere. Reproyectando...")
             aligned_path = reproject_raster(aligned_path, ref_proj, temp_path)
-            ds = gdal.Open(aligned_path)
 
-        # Ajustar dimensiones si son diferentes
-        if ds.RasterXSize != ref_width or ds.RasterYSize != ref_height:
-            print(f"⚠️  Las dimensiones de {path} difieren del raster base. Ajustando dimensiones...")
+        if width != ref_width or height != ref_height:
+            print(f"⚠️  Las dimensiones de {path} difieren. Ajustando dimensiones...")
             aligned_path = adjust_dimensions_raster(aligned_path, ref_transform, ref_width, ref_height, temp_path)
-            ds = gdal.Open(aligned_path)
 
-        print(f"✅ Finalizado ajuste para {path}. Resultado: {aligned_path}")
-        corrected_paths.append(aligned_path)
+        aligned_paths.append(aligned_path)
 
-    print("✅ Finalizó la verificación y ajuste de los rásters.")
-    return corrected_paths  # Devuelve la lista de rutas alineadas
+    print("✅ Finalizó la verificación y alineación de los rásters.")
+    return aligned_paths  # Devuelve las rutas finales alineadas

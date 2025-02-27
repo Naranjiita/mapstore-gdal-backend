@@ -71,6 +71,9 @@ async def process_rasters_api(
 
     #  Eliminar la carpeta `temp_processing/` una vez que se haya usado
     shutil.rmtree(UPLOAD_FOLDER_TEMP)
+    # Eliminar la carpeta `temp_aligned/` después de usarla
+    shutil.rmtree("app/temp_aligned", ignore_errors=True)
+
 
     #  Devolver el archivo TIFF final que está en `temp/`
     if result_path:
