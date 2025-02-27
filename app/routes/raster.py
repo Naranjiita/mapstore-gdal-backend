@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from typing import List
 import os
+import shutil
 from app.services.process_rasters import process_rasters  # Importamos la nueva función de procesamiento
 
 router = APIRouter()
@@ -11,9 +12,11 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @router.post("/process_rasters/")
 async def process_rasters_api(
-    files: List[UploadFile] = File(...),
-    multipliers: str = Form(...)
+    files: list[UploadFile] = File(...),
+    multipliers: str = Form(...),
+    output_filename: str = Form(...)
 ):
+
     """
     Endpoint que recibe archivos ráster y una cadena de multiplicadores.
     Asegura que todas las capas sean compatibles antes de operar sobre ellas.
@@ -39,7 +42,8 @@ async def process_rasters_api(
         input_paths.append(file_path)
 
     # Definir la ruta para el archivo de salida
-    output_path = os.path.join(UPLOAD_FOLDER, "resultado_combinado.tif")
+    output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+
 
     # Llamar a la función que procesa las capas (alineación + operación matemática)
     result_path = process_rasters(input_paths, multipliers_list, output_path)
@@ -53,3 +57,15 @@ async def process_rasters_api(
         return FileResponse(result_path, media_type="image/tiff", filename="resultado_combinado.tif")
     else:
         return {"error": "Hubo un error al procesar los rásters."}
+
+@router.delete("/clean_temp/")
+async def clean_temp_folder():
+    """
+    Elimina todos los archivos en la carpeta `app/temp/`.
+    """
+    if os.path.exists(UPLOAD_FOLDER):
+        shutil.rmtree(UPLOAD_FOLDER)  # Borra la carpeta y su contenido
+        os.makedirs(UPLOAD_FOLDER)  # Vuelve a crear la carpeta vacía
+        return JSONResponse({"message": "Carpeta temp eliminada con éxito."})
+    else:
+        return JSONResponse({"error": "La carpeta temp no existe."})
