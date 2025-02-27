@@ -12,11 +12,11 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
         print("❌ Error: Las listas de archivos de entrada y multiplicadores deben tener la misma longitud.")
         return ""
 
-    # **Asegurar que las capas están alineadas en CRS y dimensiones**
-    check_and_align_rasters(input_paths)  
+    # **Asegurar que las capas están alineadas y usar las capas corregidas**
+    aligned_paths = check_and_align_rasters(input_paths)
 
-    # **Cargar la primera capa como referencia después de la alineación**
-    base_dataset = gdal.Open(input_paths[0])
+    # **Cargar la primera capa como referencia**
+    base_dataset = gdal.Open(aligned_paths[0])
     if not base_dataset:
         print("❌ Error: No se pudo abrir el archivo base después de la alineación.")
         return ""
@@ -30,8 +30,8 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     sum_array = np.zeros((base_height, base_width), dtype=np.float32)
 
     # **Procesar cada capa alineada**
-    for i in range(len(input_paths)):
-        input_path = input_paths[i]
+    for i in range(len(aligned_paths)):
+        input_path = aligned_paths[i]
         multiplier = multipliers[i]
 
         dataset = gdal.Open(input_path)
@@ -41,7 +41,7 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
 
         # **Leer la banda**
         band = dataset.GetRasterBand(1)
-        original_nodata_value = band.GetNoDataValue() or 255  # Asumimos 255 si no hay NoData
+        original_nodata_value = band.GetNoDataValue() or 255
         band.SetNoDataValue(original_nodata_value)
 
         array = band.ReadAsArray().astype(np.float32)
@@ -51,9 +51,9 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
 
         # **Sumar sin modificar NoData**
         sum_array = np.where(
-            (sum_array == 255) | (processed_array == 255),  # Si cualquiera es 255, sigue siendo 255
+            (sum_array == 255) | (processed_array == 255),
             255,
-            sum_array + processed_array  # Suma en los valores válidos
+            sum_array + processed_array
         )
 
     # **Crear raster final**
@@ -71,10 +71,8 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     out_band.WriteArray(sum_array)
     out_band.SetNoDataValue(255)
 
-    # **Calcular estadísticas para visualizar correctamente**
     out_band.ComputeStatistics(False)
 
-    # **Liberar memoria**
     band, dataset, out_band, output_dataset = None, None, None, None
 
     print(f"✅ Proceso completado. Raster generado en: {output_path}")

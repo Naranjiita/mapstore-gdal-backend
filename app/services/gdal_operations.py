@@ -69,23 +69,23 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
         print(f"❌ Error al ajustar dimensiones de {input_path}.")
         return input_path
 
-def check_and_align_rasters(input_paths: List[str]) -> None:
+def check_and_align_rasters(input_paths: List[str]) -> List[str]:
     """
     Lee la primera capa como referencia e imprime:
       - Dimensiones (width x height)
       - CRS (proyección)
-    Luego compara las capas restantes para ver si coinciden en CRS y dimensiones,
-    y en caso de diferencias las ajusta usando funciones específicas.
+    Luego compara las capas restantes para ver si coinciden en CRS y dimensiones.
+    Si no coinciden, las ajusta y devuelve la lista de rutas de los archivos corregidos.
     """
     if not input_paths:
         print("❌ No se han proporcionado rutas de entrada.")
-        return
+        return []
 
     # Abrir la primera capa como referencia
     ref_ds = gdal.Open(input_paths[0])
     if not ref_ds:
         print(f"❌ Error al abrir el archivo base: {input_paths[0]}")
-        return
+        return []
 
     ref_proj = ref_ds.GetProjection()      # CRS de referencia
     ref_transform = ref_ds.GetGeoTransform()
@@ -95,6 +95,8 @@ def check_and_align_rasters(input_paths: List[str]) -> None:
     print(f"✅ Raster base: {input_paths[0]}")
     print(f"   Dimensiones: {ref_width} x {ref_height}")
     print(f"   CRS: {ref_proj}")
+
+    corrected_paths = [input_paths[0]]  # La primera capa ya es la referencia
 
     # Verificar y ajustar las demás capas
     for path in input_paths[1:]:
@@ -121,20 +123,14 @@ def check_and_align_rasters(input_paths: List[str]) -> None:
             aligned_path = reproject_raster(aligned_path, ref_proj, temp_path)
             ds = gdal.Open(aligned_path)
 
-        # Remuestrear si la resolución difiere
-        current_transform = ds.GetGeoTransform()
-        if (abs(current_transform[1] - ref_transform[1]) > 1e-6 or
-            abs(current_transform[5] - ref_transform[5]) > 1e-6):
-            print(f"⚠️  La resolución de {path} difiere de la referencia. Remuestreando...")
-            aligned_path = resample_raster(aligned_path, ref_transform[1], ref_transform[5], temp_path)
-            ds = gdal.Open(aligned_path)
-
-        # Ajustar dimensiones si difieren
+        # Ajustar dimensiones si son diferentes
         if ds.RasterXSize != ref_width or ds.RasterYSize != ref_height:
             print(f"⚠️  Las dimensiones de {path} difieren del raster base. Ajustando dimensiones...")
             aligned_path = adjust_dimensions_raster(aligned_path, ref_transform, ref_width, ref_height, temp_path)
             ds = gdal.Open(aligned_path)
 
         print(f"✅ Finalizado ajuste para {path}. Resultado: {aligned_path}")
+        corrected_paths.append(aligned_path)
 
     print("✅ Finalizó la verificación y ajuste de los rásters.")
+    return corrected_paths  # Devuelve la lista de rutas alineadas
