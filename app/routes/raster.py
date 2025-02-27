@@ -1,34 +1,34 @@
 from fastapi import APIRouter, UploadFile, File, Form
-from fastapi.responses import FileResponse
 from typing import List
 import os
-from app.services.gdal_operations import process_rasters
+from app.services.gdal_operations import check_and_align_rasters
 
 router = APIRouter()
 
-UPLOAD_FOLDER = "app/temp"  # Definir la carpeta de almacenamiento
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Crear si no existe
+UPLOAD_FOLDER = "app/temp"  
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @router.post("/process_rasters/")
 async def process_rasters_api(
     files: List[UploadFile] = File(...),
-    multipliers: str = Form(...)  # Recibir como string
+    multipliers: str = Form(...)
 ):
     """
-    Servicio que recibe capas raster, las multiplica, las suma y devuelve el archivo TIFF resultante.
+    Endpoint que recibe archivos ráster y una cadena de multiplicadores.
+    En esta versión simplificada, solo validamos que llegan los archivos,
+    verificamos CRS y dimensiones, y respondemos con un mensaje de OK.
     """
-
     if not files:
         return {"error": "Se requiere al menos un archivo raster."}
 
+    # (Opcional) Si quieres seguir recibiendo 'multipliers', los parseas aquí.
+    # Pero en esta versión no los usaremos para el cálculo.
     try:
-        multipliers_list = list(map(float, multipliers.split(",")))  # Convertir string a lista de floats
+        multipliers_list = list(map(float, multipliers.split(",")))
     except ValueError:
         return {"error": "Los valores de los multiplicadores deben ser números flotantes separados por comas."}
 
-    if len(files) != len(multipliers_list):
-        return {"error": "El número de archivos y multiplicadores debe ser el mismo."}
-
+    # Guardar los archivos en la carpeta temporal
     input_paths = []
     for file in files:
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
@@ -36,20 +36,11 @@ async def process_rasters_api(
             f.write(await file.read())
         input_paths.append(file_path)
 
-    output_path = os.path.join(UPLOAD_FOLDER, "result_backendAPi.tif")
+    # Llamar a la función que chequea y (opcionalmente) alinea los rásters
+    check_and_align_rasters(input_paths)
 
-    # Procesar los rásteres con la lista convertida
-    process_rasters(input_paths, multipliers_list)
-
-    if not os.path.exists(output_path):
-        return {"error": "Error al generar el archivo TIFF"}
-    
-    # **Eliminar archivos temporales** (solo los de entrada, no el resultado)
+    # Eliminar archivos temporales si no los necesitas para nada más
     for file_path in input_paths:
         os.remove(file_path)
 
-    return FileResponse(
-        path=output_path,
-        media_type="image/tiff",
-        filename="raster_resultado_MS.tif"
-    )
+    return {"status": "ok"}

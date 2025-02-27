@@ -1,77 +1,140 @@
-from osgeo import gdal, gdal_array
-import numpy as np
-import tempfile
+from osgeo import gdal
 import os
 from typing import List
-from io import BytesIO
 
-def process_rasters(files: List[BytesIO], multipliers: List[float]) -> str:
-    if len(files) != len(multipliers):
-        raise ValueError("Error: El número de archivos y multiplicadores debe ser el mismo.")
+def reproject_raster(input_path: str, target_crs: str, temp_output: str) -> str:
+    """
+    Reproyecta el raster para que coincida con el CRS de referencia.
+    """
+    dataset = gdal.Open(input_path)
+    if not dataset:
+        print(f"❌ Error al abrir el archivo {input_path} para reproyección.")
+        return input_path
 
-    # Crear archivos temporales para GDAL
-    temp_files = []
-    for file in files:
-        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".tif")
-        temp.write(file.read())
-        temp.flush()
-        temp.close()
-        temp_files.append(temp.name)
+    reprojected_ds = gdal.Warp(temp_output, dataset, dstSRS=target_crs, resampleAlg=gdal.GRA_NearestNeighbour)
+    if reprojected_ds:
+        reprojected_ds = None  # Cierra el dataset
+        print(f"✅ Reproyección completada: {temp_output}")
+        return temp_output
+    else:
+        print(f"❌ Error en la reproyección de {input_path}.")
+        return input_path
 
-    # Cargar la primera capa como referencia
-    base_dataset = gdal.Open(temp_files[0])
-    if not base_dataset:
-        raise RuntimeError("Error: No se pudo abrir el archivo base.")
+def resample_raster(input_path: str, xRes: float, yRes: float, temp_output: str) -> str:
+    """
+    Remuestrea el raster para que coincida con la resolución de referencia.
+    """
+    dataset = gdal.Open(input_path)
+    if not dataset:
+        print(f"❌ Error al abrir el archivo {input_path} para remuestreo.")
+        return input_path
 
-    base_crs = base_dataset.GetProjection()
-    base_transform = base_dataset.GetGeoTransform()
-    base_width = base_dataset.RasterXSize
-    base_height = base_dataset.RasterYSize
+    resampled_ds = gdal.Warp(temp_output, dataset, xRes=xRes, yRes=abs(yRes), resampleAlg=gdal.GRA_NearestNeighbour)
+    if resampled_ds:
+        resampled_ds = None
+        print(f"✅ Remuestreo completado: {temp_output}")
+        return temp_output
+    else:
+        print(f"❌ Error en el remuestreo de {input_path}.")
+        return input_path
 
-    sum_array = np.zeros((base_height, base_width), dtype=np.float32)
+def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: int, ref_height: int, temp_output: str) -> str:
+    """
+    Ajusta las dimensiones del raster para que coincidan con la capa de referencia.
+    """
+    dataset = gdal.Open(input_path)
+    if not dataset:
+        print(f"❌ Error al abrir el archivo {input_path} para ajustar dimensiones.")
+        return input_path
 
-    for i, temp_file in enumerate(temp_files):
-        dataset = gdal.Open(temp_file)
-        if not dataset:
-            print(f"❌ ERROR: No se pudo abrir el archivo raster {temp_file}.")
+    # Calcular límites de salida basados en la transformación de referencia
+    xmin, ymax = ref_transform[0], ref_transform[3]
+    xmax = xmin + ref_width * ref_transform[1]
+    ymin = ymax + ref_height * ref_transform[5]
+
+    adjusted_ds = gdal.Warp(
+        temp_output,
+        dataset,
+        width=ref_width,
+        height=ref_height,
+        resampleAlg=gdal.GRA_NearestNeighbour,
+        outputBounds=(xmin, ymin, xmax, ymax),
+        dstNodata=255
+    )
+    if adjusted_ds:
+        adjusted_ds = None
+        print(f"✅ Ajuste de dimensiones completado: {temp_output}")
+        return temp_output
+    else:
+        print(f"❌ Error al ajustar dimensiones de {input_path}.")
+        return input_path
+
+def check_and_align_rasters(input_paths: List[str]) -> None:
+    """
+    Lee la primera capa como referencia e imprime:
+      - Dimensiones (width x height)
+      - CRS (proyección)
+    Luego compara las capas restantes para ver si coinciden en CRS y dimensiones,
+    y en caso de diferencias las ajusta usando funciones específicas.
+    """
+    if not input_paths:
+        print("❌ No se han proporcionado rutas de entrada.")
+        return
+
+    # Abrir la primera capa como referencia
+    ref_ds = gdal.Open(input_paths[0])
+    if not ref_ds:
+        print(f"❌ Error al abrir el archivo base: {input_paths[0]}")
+        return
+
+    ref_proj = ref_ds.GetProjection()      # CRS de referencia
+    ref_transform = ref_ds.GetGeoTransform()
+    ref_width = ref_ds.RasterXSize
+    ref_height = ref_ds.RasterYSize
+
+    print(f"✅ Raster base: {input_paths[0]}")
+    print(f"   Dimensiones: {ref_width} x {ref_height}")
+    print(f"   CRS: {ref_proj}")
+
+    # Verificar y ajustar las demás capas
+    for path in input_paths[1:]:
+        ds = gdal.Open(path)
+        if not ds:
+            print(f"❌ Error al abrir el archivo {path}")
             continue
 
-        band = dataset.GetRasterBand(1)
-        original_nodata_value = band.GetNoDataValue() or 255
-        band.SetNoDataValue(original_nodata_value)
+        proj = ds.GetProjection()
+        width = ds.RasterXSize
+        height = ds.RasterYSize
 
-        array = band.ReadAsArray().astype(np.float32)
-        processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multipliers[i])
+        print(f"🔎 Verificando {path} ...")
+        print(f"   Dimensiones: {width} x {height}")
+        print(f"   CRS: {proj}")
 
-        sum_array = np.where(
-            (sum_array == 255) | (processed_array == 255),
-            255,
-            sum_array + processed_array
-        )
+        # Inicializamos la ruta alineada con la original
+        aligned_path = path
+        temp_path = f"{path}_aligned.tif"
 
-    # Crear un archivo temporal para la salida
-    output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".tif")
-    output_path = output_file.name
-    output_file.close()
+        # Reproyectar si el CRS difiere
+        if proj != ref_proj:
+            print(f"⚠️  El CRS de {path} difiere del raster base. Reproyectando...")
+            aligned_path = reproject_raster(aligned_path, ref_proj, temp_path)
+            ds = gdal.Open(aligned_path)
 
-    driver = gdal.GetDriverByName('GTiff')
-    output_dataset = driver.Create(output_path, base_width, base_height, 1, gdal.GDT_Float32)
+        # Remuestrear si la resolución difiere
+        current_transform = ds.GetGeoTransform()
+        if (abs(current_transform[1] - ref_transform[1]) > 1e-6 or
+            abs(current_transform[5] - ref_transform[5]) > 1e-6):
+            print(f"⚠️  La resolución de {path} difiere de la referencia. Remuestreando...")
+            aligned_path = resample_raster(aligned_path, ref_transform[1], ref_transform[5], temp_path)
+            ds = gdal.Open(aligned_path)
 
-    if output_dataset is None:
-        raise RuntimeError("❌ ERROR: No se pudo crear el archivo de salida.")
+        # Ajustar dimensiones si difieren
+        if ds.RasterXSize != ref_width or ds.RasterYSize != ref_height:
+            print(f"⚠️  Las dimensiones de {path} difieren del raster base. Ajustando dimensiones...")
+            aligned_path = adjust_dimensions_raster(aligned_path, ref_transform, ref_width, ref_height, temp_path)
+            ds = gdal.Open(aligned_path)
 
-    output_dataset.SetGeoTransform(base_transform)
-    output_dataset.SetProjection(base_crs)
+        print(f"✅ Finalizado ajuste para {path}. Resultado: {aligned_path}")
 
-    out_band = output_dataset.GetRasterBand(1)
-    out_band.WriteArray(sum_array)
-    out_band.SetNoDataValue(255)
-    out_band.ComputeStatistics(False)
-
-    band, dataset, out_band, output_dataset = None, None, None, None
-
-    # Eliminar archivos temporales de entrada
-    for temp_file in temp_files:
-        os.remove(temp_file)
-
-    return output_path
+    print("✅ Finalizó la verificación y ajuste de los rásters.")
