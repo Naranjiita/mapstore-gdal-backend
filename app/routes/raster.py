@@ -134,3 +134,23 @@ async def combine_stored_rasters(
     else:
         return {"error": "Hubo un error al procesar las capas almacenadas."}
 
+
+#  Carpeta donde se guardarán los resultados finales
+RESULT_FOLDER = "app/result"
+
+#  Asegurar que la carpeta `result/` existe
+os.makedirs(RESULT_FOLDER, exist_ok=True)
+@router.get("/download_result/")
+async def download_result(file_name: str = Query(..., description="Nombre del archivo a descargar (sin extensión .tif)")):
+    """
+    📌 Endpoint para descargar un raster resultante desde `result/`.
+    - Se espera solo el nombre del archivo sin la extensión `.tif`.
+    - El archivo debe estar en la carpeta `result/`.
+    """
+    file_path = os.path.join(RESULT_FOLDER, f"{file_name}.tif")
+
+    if not os.path.exists(file_path):
+        return JSONResponse(status_code=404, content={"error": f"El archivo {file_name}.tif no existe en {RESULT_FOLDER}."})
+
+    return FileResponse(file_path, media_type="image/tiff", filename=f"{file_name}.tif")
+
