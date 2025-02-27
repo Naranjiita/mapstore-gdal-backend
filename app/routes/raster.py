@@ -154,3 +154,23 @@ async def download_result(file_name: str = Query(..., description="Nombre del ar
 
     return FileResponse(file_path, media_type="image/tiff", filename=f"{file_name}.tif")
 
+@router.get("/download_all_temp/")
+async def download_all_temp():
+    """
+    📌 Endpoint para comprimir todas las capas en `temp/` y enviarlas en un ZIP.
+    """
+
+    TEMP_FOLDER = "app/temp"
+    ZIP_PATH = "app/temp/all_rasters.zip"
+
+    # Verificar que hay archivos en `temp/`
+    raster_files = [f for f in os.listdir(TEMP_FOLDER) if f.endswith(".tif")]
+    if not raster_files:
+        return JSONResponse(status_code=404, content={"error": "No hay archivos en la carpeta temp."})
+
+    # Comprimir en ZIP
+    shutil.make_archive(ZIP_PATH.replace(".zip", ""), 'zip', TEMP_FOLDER)
+
+    # Enviar el ZIP
+    return FileResponse(ZIP_PATH, media_type="application/zip", filename="all_rasters.zip")
+
