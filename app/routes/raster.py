@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 import os
