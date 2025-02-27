@@ -4,6 +4,8 @@ from typing import List
 import os
 import shutil
 from app.services.process_rasters import process_rasters  # Importamos la nueva función de procesamiento
+import zipfile
+import tempfile
 
 router = APIRouter()
 
@@ -154,6 +156,8 @@ async def download_result(file_name: str = Query(..., description="Nombre del ar
 
     return FileResponse(file_path, media_type="image/tiff", filename=f"{file_name}.tif")
 
+
+
 @router.get("/download_all_temp/")
 async def download_all_temp():
     """
@@ -161,16 +165,22 @@ async def download_all_temp():
     """
 
     TEMP_FOLDER = "app/temp"
-    ZIP_PATH = "app/temp/all_rasters.zip"
 
     # Verificar que hay archivos en `temp/`
-    raster_files = [f for f in os.listdir(TEMP_FOLDER) if f.endswith(".tif")]
+    raster_files = [os.path.join(TEMP_FOLDER, f) for f in os.listdir(TEMP_FOLDER) if f.endswith(".tif")]
     if not raster_files:
         return JSONResponse(status_code=404, content={"error": "No hay archivos en la carpeta temp."})
 
-    # Comprimir en ZIP
-    shutil.make_archive(ZIP_PATH.replace(".zip", ""), 'zip', TEMP_FOLDER)
+    # Crear un archivo temporal para el ZIP (en un lugar seguro)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
+        zip_path = tmp_zip.name
 
-    # Enviar el ZIP
-    return FileResponse(ZIP_PATH, media_type="application/zip", filename="all_rasters.zip")
+    # Comprimir los archivos uno por uno, evitando usar mucha RAM
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for file in raster_files:
+            zipf.write(file, os.path.basename(file))  # Guardar solo el nombre del archivo en el ZIP
+
+    # Enviar el ZIP generado
+    return FileResponse(zip_path, media_type="application/zip", filename="all_rasters.zip")
+
 
