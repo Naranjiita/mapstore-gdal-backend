@@ -46,7 +46,10 @@ async def process_rasters_api(
     if len(files) != len(multipliers_list):
         return {"error": "El número de archivos y multiplicadores debe ser el mismo."}
 
-    #  Guardar los archivos en la carpeta `temp_processing/`
+    #  Asegurar que la carpeta `temp_processing/` existe ANTES de guardar archivos
+    if not os.path.exists(UPLOAD_FOLDER_TEMP):
+        os.makedirs(UPLOAD_FOLDER_TEMP, exist_ok=True)
+
     input_paths = []
     for file in files:
         file_path = os.path.join(UPLOAD_FOLDER_TEMP, file.filename)
@@ -87,3 +90,47 @@ async def clean_temp_folder():
         return JSONResponse({"message": "Carpeta temp eliminada con éxito."})
     else:
         return JSONResponse({"error": "La carpeta temp no existe."})
+    
+@router.post("/combine_stored_rasters/")
+async def combine_stored_rasters(
+    multipliers: str = Form(...),
+    output_filename: str = Form(...)
+):
+    """
+    📌 Nueva funcionalidad:
+    - Toma automáticamente las 7 capas almacenadas en `temp/`.
+    - Recibe un arreglo de 7 números decimales como multiplicadores.
+    - Multiplica cada capa por su respectivo número y las suma.
+    - Guarda el resultado en `result/`.
+    """
+
+    # 📌 Definir carpetas
+    TEMP_FOLDER = "app/temp"  # Carpeta donde ya están almacenadas las 7 capas
+    RESULT_FOLDER = "app/result"  # Carpeta donde se guardará la capa final
+    os.makedirs(RESULT_FOLDER, exist_ok=True)  # Asegurar que exista
+
+    # 📌 Obtener las 7 capas de `temp/`
+    raster_files = sorted([os.path.join(TEMP_FOLDER, f) for f in os.listdir(TEMP_FOLDER) if f.endswith(".tif")])
+
+    if len(raster_files) != 7:
+        return {"error": f"Se esperaban exactamente 7 capas en {TEMP_FOLDER}, pero se encontraron {len(raster_files)}."}
+
+    try:
+        multipliers_list = list(map(float, multipliers.split(",")))
+    except ValueError:
+        return {"error": "Los valores de los multiplicadores deben ser números flotantes separados por comas."}
+
+    if len(multipliers_list) != 7:
+        return {"error": "El número de multiplicadores debe ser exactamente 7."}
+
+    # 📌 Definir ruta de salida en `result/`
+    output_path = os.path.join(RESULT_FOLDER, output_filename)
+
+    # 📌 Procesar rásters
+    result_path = process_rasters(raster_files, multipliers_list, output_path)
+
+    if result_path:
+        return {"message": "Cálculo completado con éxito.", "file_path": result_path}
+    else:
+        return {"error": "Hubo un error al procesar las capas almacenadas."}
+
