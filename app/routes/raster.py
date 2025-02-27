@@ -1,7 +1,8 @@
 from fastapi import APIRouter, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from typing import List
 import os
-from app.services.gdal_operations import check_and_align_rasters
+from app.services.process_rasters import process_rasters  # Importamos la nueva función de procesamiento
 
 router = APIRouter()
 
@@ -15,18 +16,19 @@ async def process_rasters_api(
 ):
     """
     Endpoint que recibe archivos ráster y una cadena de multiplicadores.
-    En esta versión simplificada, solo validamos que llegan los archivos,
-    verificamos CRS y dimensiones, y respondemos con un mensaje de OK.
+    Asegura que todas las capas sean compatibles antes de operar sobre ellas.
+    Luego, realiza la multiplicación y la suma y devuelve el TIFF resultante.
     """
     if not files:
         return {"error": "Se requiere al menos un archivo raster."}
 
-    # (Opcional) Si quieres seguir recibiendo 'multipliers', los parseas aquí.
-    # Pero en esta versión no los usaremos para el cálculo.
     try:
         multipliers_list = list(map(float, multipliers.split(",")))
     except ValueError:
         return {"error": "Los valores de los multiplicadores deben ser números flotantes separados por comas."}
+
+    if len(files) != len(multipliers_list):
+        return {"error": "El número de archivos y multiplicadores debe ser el mismo."}
 
     # Guardar los archivos en la carpeta temporal
     input_paths = []
@@ -36,11 +38,18 @@ async def process_rasters_api(
             f.write(await file.read())
         input_paths.append(file_path)
 
-    # Llamar a la función que chequea y (opcionalmente) alinea los rásters
-    check_and_align_rasters(input_paths)
+    # Definir la ruta para el archivo de salida
+    output_path = os.path.join(UPLOAD_FOLDER, "resultado_combinado.tif")
 
-    # Eliminar archivos temporales si no los necesitas para nada más
+    # Llamar a la función que procesa las capas (alineación + operación matemática)
+    result_path = process_rasters(input_paths, multipliers_list, output_path)
+
+    # Eliminar archivos temporales de entrada
     for file_path in input_paths:
         os.remove(file_path)
 
-    return {"status": "ok"}
+    if result_path:
+        # Devolver el archivo TIFF resultante
+        return FileResponse(result_path, media_type="image/tiff", filename="resultado_combinado.tif")
+    else:
+        return {"error": "Hubo un error al procesar los rásters."}
