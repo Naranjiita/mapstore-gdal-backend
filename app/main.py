@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from app.routes import raster
 from fastapi.middleware.cors import CORSMiddleware
+import signal
+import sys
 
 app = FastAPI(title="MapStore GDAL Backend")
 
@@ -13,6 +15,11 @@ app.add_middleware(
 )
 
 app.include_router(raster.router, prefix="/api", tags=["Raster Processing"])
+def shutdown():
+    print("Cerrando servicio GDAL...")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, lambda s, f: shutdown())
 
 @app.get("/")
 def root():
