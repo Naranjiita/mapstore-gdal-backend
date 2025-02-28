@@ -18,10 +18,10 @@ async def shutdown_event():
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     for task in tasks:
         task.cancel()
-        try:
-            await task  # Espera a que terminen las tareas pendientes
-        except asyncio.CancelledError:
-            pass  # Ignoramos el error si una tarea ya ha sido cancelada
+    try:
+        await asyncio.sleep(0.1)  # Pequeña pausa para evitar cierre abrupto
+    except asyncio.CancelledError:
+        pass  # Ignoramos `CancelledError` al cerrar el servicio
 
     print("--- Todas las tareas pendientes han sido canceladas. Servicio cerrado correctamente.")
 
