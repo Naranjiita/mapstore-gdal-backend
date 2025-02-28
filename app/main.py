@@ -5,25 +5,19 @@ import asyncio
 
 app = FastAPI(title="MapStore GDAL Backend")
 
-#  Manejo del ciclo de vida del servidor
+#  Manejo del ciclo de vida de FastAPI
 @app.on_event("startup")
 async def startup_event():
-    print("*** Servidor GDAL FastAPI iniciado. ***")
+    print(" Servidor GDAL FastAPI iniciado.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     print("Cerrando servicio GDAL...")
-
-    #  Cancelar tareas pendientes sin cerrar el bucle de eventos abruptamente
+    loop = asyncio.get_event_loop()
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    for task in tasks:
-        task.cancel()
-    try:
-        await asyncio.sleep(0.1)  # Pequeña pausa para evitar cierre abrupto
-    except asyncio.CancelledError:
-        pass  # Ignoramos `CancelledError` al cerrar el servicio
-
-    print("--- Todas las tareas pendientes han sido canceladas. Servicio cerrado correctamente.")
+    [task.cancel() for task in tasks]  #  Cancelar todas las tareas pendientes
+    await asyncio.gather(*tasks, return_exceptions=True)  #  Esperar que todas se terminen
+    loop.stop()  #  Detener el bucle de eventos correctamente
 
 # Habilitar CORS
 app.add_middleware(
