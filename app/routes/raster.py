@@ -164,7 +164,7 @@ async def download_result(file_name: str = Query(..., description="Nombre del ar
 @router.get("/download_all_temp/")
 async def download_all_temp():
     """
-    📌 Endpoint para comprimir todas las capas en `temp/` y enviarlas en un ZIP.
+     Endpoint para comprimir todas las capas en `temp/` y enviarlas en un ZIP.
     """
 
     TEMP_FOLDER = "app/temp"
