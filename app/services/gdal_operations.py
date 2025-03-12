@@ -45,15 +45,12 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
     dataset = gdal.Open(input_path)
     if not dataset:
         print(f"❌ Error al abrir el archivo {input_path} para ajustar dimensiones.")
-        return input_path  # Devolver el original si hay error
+        return input_path
 
     # Calcular límites de salida basados en la transformación de referencia
     xmin, ymax = ref_transform[0], ref_transform[3]
     xmax = xmin + ref_width * ref_transform[1]
     ymin = ymax + ref_height * ref_transform[5]
-
-    print(f"ℹ️ Ajustando dimensiones para {input_path}")
-    print(f"   Output Bounds: xmin={xmin}, ymin={ymin}, xmax={xmax}, ymax={ymax}")
 
     adjusted_ds = gdal.Warp(
         temp_output,
@@ -64,16 +61,13 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
         outputBounds=(xmin, ymin, xmax, ymax),
         dstNodata=255
     )
-    
-    if adjusted_ds is None:
-        print(f"❌ Error en GDAL.Warp(): No se pudo ajustar dimensiones de {input_path}.")
-        return input_path  # Devolver la original en lugar de None
-    
-    adjusted_ds = None  # Cerrar el dataset
-    print(f"✅ Ajuste de dimensiones completado: {temp_output}")
-    return temp_output
-
-
+    if adjusted_ds:
+        adjusted_ds = None
+        print(f"✅ Ajuste de dimensiones completado: {temp_output}")
+        return temp_output
+    else:
+        print(f"❌ Error al ajustar dimensiones de {input_path}.")
+        return input_path
 
 # 📌 Carpeta temporal para archivos alineados
 ALIGNED_FOLDER = "app/temp_aligned"
@@ -128,13 +122,7 @@ def check_and_align_rasters(input_paths: List[str]) -> List[str]:
             print(f"⚠️  Las dimensiones de {path} difieren. Ajustando dimensiones...")
             aligned_path = adjust_dimensions_raster(aligned_path, ref_transform, ref_width, ref_height, temp_path)
 
-        # 🔹 NUEVA VERIFICACIÓN: Asegurar que `aligned_path` es válido
-        if not aligned_path or not os.path.exists(aligned_path):
-            print(f"❌ ERROR: No se generó correctamente el archivo alineado {aligned_path}.")
-            return []  # ⚠️ Si falla, se devuelve una lista vacía y se detiene el proceso.
-
-        aligned_paths.append(aligned_path)  # ✅ Ahora solo agregamos archivos válidos.
-
+        aligned_paths.append(aligned_path)
 
     print("✅ Finalizó la verificación y alineación de los rásters.")
     return aligned_paths  # Devuelve las rutas finales alineadas
