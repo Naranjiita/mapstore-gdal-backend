@@ -45,16 +45,26 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
         input_path = aligned_paths[i]
         multiplier = multipliers[i]
 
-        dataset = gdal.Open(input_path)
-        if not dataset:
-            print(f"❌ ERROR: No se pudo abrir el archivo raster {input_path}.")
+        if not os.path.exists(input_path):
+            print(f"❌ ERROR: El archivo {input_path} no existe.")
             continue
+        dataset = gdal.Open(input_path)
+        if dataset is None:
+            print(f"❌ ERROR: No se pudo abrir el archivo {input_path}. Puede estar corrupto o vacío.")
+            continue
+
 
         band = dataset.GetRasterBand(1)
         original_nodata_value = band.GetNoDataValue() or 255
 
         for row in range(base_height):
-            array = band.ReadAsArray(0, row, base_width, 1).astype(np.float32)
+            array = band.ReadAsArray(0, row, base_width, 1)
+    
+            if array is None:
+                print(f"⚠️ Advertencia: No se pudo leer la fila {row} en {input_path}. Omitiendo...")
+                continue  # No intentar procesar esta fila
+                
+            array = array.astype(np.float32)
 
             # Multiplicamos evitando modificar valores NoData
             processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)

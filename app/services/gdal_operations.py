@@ -44,13 +44,15 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
     """
     dataset = gdal.Open(input_path)
     if not dataset:
-        print(f"❌ Error al abrir el archivo {input_path} para ajustar dimensiones.")
+        print(f"❌ ERROR: No se pudo abrir {input_path} para ajustar dimensiones.")
         return input_path
 
-    # Calcular límites de salida basados en la transformación de referencia
     xmin, ymax = ref_transform[0], ref_transform[3]
     xmax = xmin + ref_width * ref_transform[1]
     ymin = ymax + ref_height * ref_transform[5]
+
+    print(f"ℹ️ Ajustando dimensiones para {input_path}")
+    print(f"   Output Bounds: xmin={xmin}, ymin={ymin}, xmax={xmax}, ymax={ymax}")
 
     adjusted_ds = gdal.Warp(
         temp_output,
@@ -61,13 +63,10 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
         outputBounds=(xmin, ymin, xmax, ymax),
         dstNodata=255
     )
-    if adjusted_ds:
-        adjusted_ds = None
-        print(f"✅ Ajuste de dimensiones completado: {temp_output}")
-        return temp_output
-    else:
+    if adjusted_ds is None:
         print(f"❌ Error al ajustar dimensiones de {input_path}.")
         return input_path
+
 
 # 📌 Carpeta temporal para archivos alineados
 ALIGNED_FOLDER = "app/temp_aligned"

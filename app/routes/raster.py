@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, Query
+from fastapi import APIRouter, UploadFile, File, Form, Query, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 import os
@@ -63,16 +63,23 @@ async def process_rasters_api(
     output_path = os.path.join(UPLOAD_FOLDER_FINAL, output_filename)
 
     #  Procesar los rásters
-    result_path = process_rasters(input_paths, multipliers_list, output_path)
+    try:
+        result_path = process_rasters(input_paths, multipliers_list, output_path)
+    except Exception as e:
+        print(f"⚠️ Error en el procesamiento: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
     #  Eliminar archivos temporales de entrada después del procesamiento
     for file_path in input_paths:
         os.remove(file_path)
 
-    #  Eliminar la carpeta `temp_processing/` una vez que se haya usado
+    # Eliminar la carpeta `temp_processing/` y `temp_aligned/`
     shutil.rmtree(UPLOAD_FOLDER_TEMP)
-    # Eliminar la carpeta `temp_aligned/` después de usarla
     shutil.rmtree("app/temp_aligned", ignore_errors=True)
+
+    # Volver a crear las carpetas después de eliminarlas
+    os.makedirs(UPLOAD_FOLDER_TEMP, exist_ok=True)
+    os.makedirs("app/temp_aligned", exist_ok=True)
 
 
     #  Devolver el archivo TIFF final que está en `temp/`
@@ -164,7 +171,7 @@ async def download_result(file_name: str = Query(..., description="Nombre del ar
 @router.get("/download_all_temp/")
 async def download_all_temp():
     """
-    📌 Endpoint para comprimir todas las capas en `temp/` y enviarlas en un ZIP.
+     Endpoint para comprimir todas las capas en `temp/` y enviarlas en un ZIP.
     """
 
     TEMP_FOLDER = "app/temp"
@@ -185,5 +192,3 @@ async def download_all_temp():
 
     # Enviar el ZIP generado
     return FileResponse(zip_path, media_type="application/zip", filename="all_rasters.zip")
-
-
