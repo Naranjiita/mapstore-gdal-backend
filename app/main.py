@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],  # Permitir todos los encabezados
 )
 
-app.include_router(raster.router, prefix="/api", tags=["Raster Processing"])
+app.include_router(raster.router, tags=["Raster Processing"])
 
 @app.get("/")
 def root():
