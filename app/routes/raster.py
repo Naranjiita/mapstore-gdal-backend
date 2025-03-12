@@ -73,10 +73,13 @@ async def process_rasters_api(
     for file_path in input_paths:
         os.remove(file_path)
 
-    #  Eliminar la carpeta `temp_processing/` una vez que se haya usado
+    # Eliminar la carpeta `temp_processing/` y `temp_aligned/`
     shutil.rmtree(UPLOAD_FOLDER_TEMP)
-    # Eliminar la carpeta `temp_aligned/` después de usarla
     shutil.rmtree("app/temp_aligned", ignore_errors=True)
+
+    # Volver a crear las carpetas después de eliminarlas
+    os.makedirs(UPLOAD_FOLDER_TEMP, exist_ok=True)
+    os.makedirs("app/temp_aligned", exist_ok=True)
 
 
     #  Devolver el archivo TIFF final que está en `temp/`
