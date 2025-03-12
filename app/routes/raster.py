@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, Query
+from fastapi import APIRouter, UploadFile, File, Form, Query, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 import os
@@ -63,7 +63,11 @@ async def process_rasters_api(
     output_path = os.path.join(UPLOAD_FOLDER_FINAL, output_filename)
 
     #  Procesar los rásters
-    result_path = process_rasters(input_paths, multipliers_list, output_path)
+    try:
+        result_path = process_rasters(input_paths, multipliers_list, output_path)
+    except Exception as e:
+        print(f"⚠️ Error en el procesamiento: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
     #  Eliminar archivos temporales de entrada después del procesamiento
     for file_path in input_paths:

@@ -29,11 +29,12 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
 
     #  Crear el archivo TIFF de salida en disco
     driver = gdal.GetDriverByName('GTiff')
-    output_dataset = driver.Create(output_path, base_width, base_height, 1, gdal.GDT_Float32)
+    # Asegurar que la carpeta de salida existe
+    output_directory = os.path.dirname(output_path)
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
 
-    if output_dataset is None:
-        print(" ERROR: No se pudo crear el archivo de salida.")
-        return ""
+    output_dataset = driver.Create(output_path, base_width, base_height, 1, gdal.GDT_Float32)
 
     output_dataset.SetGeoTransform(base_transform)
     output_dataset.SetProjection(base_crs)
@@ -54,10 +55,18 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
         original_nodata_value = band.GetNoDataValue() or 255
 
         for row in range(base_height):
-            array = band.ReadAsArray(0, row, base_width, 1).astype(np.float32)
+            array = band.ReadAsArray(0, row, base_width, 1)
+            if array is None:
+                raise ValueError(f"Error: No se pudo leer los datos de la banda en {input_path}")
 
-            # Multiplicamos evitando modificar valores NoData
+            array = array.astype(np.float32)
+
+
+            if np.all(array == original_nodata_value):
+                raise ValueError(f"Error: Todos los valores en {input_path} son NoData.")
+
             processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
+
 
             # Leer la fila actual de salida y sumar
             existing_row = out_band.ReadAsArray(0, row, base_width, 1)

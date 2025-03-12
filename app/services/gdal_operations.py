@@ -49,6 +49,11 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
     xmax = xmin + ref_width * ref_transform[1]
     ymin = ymax + ref_height * ref_transform[5]
 
+    # Asegurar que la carpeta de salida existe antes de usarla
+    output_directory = os.path.dirname(temp_output)
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory, exist_ok=True)
+
     adjusted_ds = gdal.Warp(
         temp_output,
         dataset,
