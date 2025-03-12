@@ -16,6 +16,11 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     # **Asegurar que las capas están alineadas y usar las capas corregidas**
     aligned_paths = check_and_align_rasters(input_paths)
 
+    for path in aligned_paths:
+        if path is None:
+            print(f"❌ ERROR: Una de las capas alineadas no se generó correctamente.")
+            return ""
+
     # **Cargar la primera capa como referencia**
     base_dataset = gdal.Open(aligned_paths[0])
     if not base_dataset:

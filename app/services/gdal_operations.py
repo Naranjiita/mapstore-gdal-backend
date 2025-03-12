@@ -64,9 +64,8 @@ def adjust_dimensions_raster(input_path: str, ref_transform: tuple, ref_width: i
         dstNodata=255
     )
     if adjusted_ds is None:
-        print(f"❌ Error al ajustar dimensiones de {input_path}.")
-        return input_path
-
+        print(f"❌ Error en GDAL.Warp(): No se pudo ajustar dimensiones de {input_path}.")
+        return input_path  # Devolver la original en lugar de None
 
 # 📌 Carpeta temporal para archivos alineados
 ALIGNED_FOLDER = "app/temp_aligned"
