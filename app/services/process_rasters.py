@@ -2,30 +2,30 @@ from osgeo import gdal
 import numpy as np
 import os
 from typing import List
-from app.services.gdal_operations import check_and_align_rasters  # Importamos la validación previa
+from app.services.gdal_operations import check_and_align_rasters
+
+BLOCK_SIZE = 256  # Tamaño de bloque para procesamiento en memoria
 
 def process_rasters(input_paths: List[str], multipliers: List[float], output_path: str) -> str:
-    """
-    Procesa capas ráster alineándolas primero y luego realizando la multiplicación y suma.
-    """
     if len(input_paths) != len(multipliers):
-        print("❌ Error: Las listas de archivos de entrada y multiplicadores deben tener la misma longitud.")
+        print("❌ Error: Listas de archivos y multiplicadores deben tener la misma longitud.")
         return ""
 
-    # **Asegurar que las capas están alineadas y usar las capas corregidas**
     aligned_paths = check_and_align_rasters(input_paths)
+    if not aligned_paths:
+        print("❌ Error: No se generaron archivos alineados.")
+        return ""
 
-    # **Cargar la primera capa como referencia**
     base_dataset = gdal.Open(aligned_paths[0])
     if not base_dataset:
-        print("❌ Error: No se pudo abrir el archivo base. ")
+        print("❌ Error: No se pudo abrir la capa base.")
         return ""
 
-    base_crs = base_dataset.GetProjection()  # CRS de la capa base
-    base_transform = base_dataset.GetGeoTransform()  # Geotransform de la capa base
-    base_width = base_dataset.RasterXSize  # Dimensión X
-    base_height = base_dataset.RasterYSize  # Dimensión Y
-    
+    base_crs = base_dataset.GetProjection()
+    base_transform = base_dataset.GetGeoTransform()
+    base_width = base_dataset.RasterXSize
+    base_height = base_dataset.RasterYSize
+
     driver = gdal.GetDriverByName('GTiff')
     output_dataset = driver.Create(output_path, base_width, base_height, 1, gdal.GDT_Float32)
     if output_dataset is None:
@@ -37,32 +37,40 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     out_band = output_dataset.GetRasterBand(1)
     out_band.SetNoDataValue(255)
 
-    # **Procesar cada capa alineada por filas**
-    for i, input_path in enumerate(aligned_paths):
-        multiplier = multipliers[i]
-        dataset = gdal.Open(input_path)
-        if not dataset:
-            print(f"❌ Error al abrir {input_path}.")
-            continue
+    #  Procesamiento en bloques
+    for y in range(0, base_height, BLOCK_SIZE):
+        block_height = min(BLOCK_SIZE, base_height - y)  # Evita salir del tamaño real
 
-        band = dataset.GetRasterBand(1)
-        original_nodata_value = band.GetNoDataValue() or 255
-        for row in range(base_height):
-            array = band.ReadAsArray(0, row, base_width, 1)
-            if array is None:
-                continue
+        for x in range(0, base_width, BLOCK_SIZE):
+            block_width = min(BLOCK_SIZE, base_width - x)
 
-            array = array.astype(np.float32)
-            processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
+            # Crear bloque vacío
+            sum_block = np.zeros((block_height, block_width), dtype=np.float32)
 
-            existing_array = out_band.ReadAsArray(0, row, base_width, 1)
-            if existing_array is None:
-                existing_array = np.zeros((1, base_width), dtype=np.float32)
+            for i, input_path in enumerate(aligned_paths):
+                multiplier = multipliers[i]
+                dataset = gdal.Open(input_path)
+                if not dataset:
+                    print(f"❌ Error al abrir {input_path}.")
+                    continue
 
-            sum_row = np.where((existing_array == 255) | (processed_array == 255), 255, existing_array + processed_array)
-            out_band.WriteArray(sum_row, 0, row)
+                band = dataset.GetRasterBand(1)
+                original_nodata_value = band.GetNoDataValue() or 255
 
-        dataset = None
+                array = band.ReadAsArray(x, y, block_width, block_height)
+                if array is None:
+                    continue
+
+                array = array.astype(np.float32)
+
+                # Multiplicamos evitando modificar valores NoData
+                processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
+
+                # Sumar valores válidos
+                sum_block = np.where((sum_block == 255) | (processed_array == 255), 255, sum_block + processed_array)
+
+            # Escribir el bloque en el archivo de salida
+            out_band.WriteArray(sum_block, x, y)
 
     out_band.ComputeStatistics(False)
     out_band, output_dataset = None, None
