@@ -62,24 +62,27 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
         band = dataset.GetRasterBand(1)
         original_nodata_value = band.GetNoDataValue() or 255
 
-        for row in range(base_height):
-            array = band.ReadAsArray(0, row, base_width, 1)
-    
-            if array is None:
-                print(f"⚠️ Advertencia: No se pudo leer la fila {row} en {input_path}. Omitiendo...")
-                continue  # No intentar procesar esta fila
-                
-            array = array.astype(np.float32)
+        # Leer toda la imagen a la vez en memoria
+        array = band.ReadAsArray().astype(np.float32)
 
-            # Multiplicamos evitando modificar valores NoData
-            processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
+        if array is None:
+            print(f"❌ Error: No se pudo leer el ráster {input_path}. Omitiendo...")
+            continue  # Si no se puede leer el archivo, pasamos al siguiente
 
-            # Leer la fila actual de salida y sumar
-            existing_row = out_band.ReadAsArray(0, row, base_width, 1)
-            sum_row = np.where((existing_row == 255) | (processed_array == 255), 255, existing_row + processed_array)
+        # Multiplicamos evitando modificar valores NoData
+        processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
 
-            # Guardar la fila procesada en el TIFF de salida
-            out_band.WriteArray(sum_row, 0, row)
+        # Leer toda la imagen de salida en memoria
+        existing_array = out_band.ReadAsArray()
+        if existing_array is None:
+            existing_array = np.zeros_like(processed_array)  # Inicializar si es la primera capa
+
+        # Sumar las capas evitando modificar NoData
+        sum_array = np.where((existing_array == 255) | (processed_array == 255), 255, existing_array + processed_array)
+
+        # Guardar la imagen procesada completa en el TIFF de salida
+        out_band.WriteArray(sum_array)
+
 
         dataset = None  # Cerrar archivo GDAL después de procesarlo
 
