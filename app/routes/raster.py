@@ -108,7 +108,7 @@ async def clean_temp_folder():
         return JSONResponse({"error": "La carpeta temp no existe."})
     
 @router.delete("/clean_result/")
-async def clean_temp_folder():
+async def clean_result_folder():
     """
      Endpoint para eliminar manualmente los archivos de la carpeta `result/`.
 
