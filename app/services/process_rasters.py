@@ -2,32 +2,30 @@ from osgeo import gdal
 import numpy as np
 import os
 from typing import List
-from app.services.gdal_operations import check_and_align_rasters  # Importamos la validación previa
+from app.services.gdal_operations import check_and_align_rasters
+
+BLOCK_SIZE = 256  # Tamaño de bloque para procesamiento en memoria
 
 def process_rasters(input_paths: List[str], multipliers: List[float], output_path: str) -> str:
-    """
-    Procesa capas ráster alineándolas primero y luego realizando la multiplicación y suma.
-    """
-
     if len(input_paths) != len(multipliers):
-        print(" Error: Las listas de archivos de entrada y multiplicadores deben tener la misma longitud.")
+        print("❌ Error: Listas de archivos y multiplicadores deben tener la misma longitud.")
         return ""
 
-    # **Asegurar que las capas están alineadas y usar las capas corregidas**
     aligned_paths = check_and_align_rasters(input_paths)
+    if not aligned_paths:
+        print("❌ Error: No se generaron archivos alineados.")
+        return ""
 
-    # **Cargar la primera capa como referencia**
     base_dataset = gdal.Open(aligned_paths[0])
     if not base_dataset:
-        print(" Error: No se pudo abrir el archivo base después de la alineación.")
+        print("❌ Error: No se pudo abrir la capa base.")
         return ""
 
-    base_crs = base_dataset.GetProjection()  # CRS de la capa base
-    base_transform = base_dataset.GetGeoTransform()  # Geotransform de la capa base
-    base_width = base_dataset.RasterXSize  # Dimensión X
-    base_height = base_dataset.RasterYSize  # Dimensión Y
+    base_crs = base_dataset.GetProjection()
+    base_transform = base_dataset.GetGeoTransform()
+    base_width = base_dataset.RasterXSize
+    base_height = base_dataset.RasterYSize
 
-    #  Crear el archivo TIFF de salida en disco
     driver = gdal.GetDriverByName('GTiff')
     # Asegurar que la carpeta de salida existe
     output_directory = os.path.dirname(output_path)
@@ -35,53 +33,52 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
         os.makedirs(output_directory, exist_ok=True)
 
     output_dataset = driver.Create(output_path, base_width, base_height, 1, gdal.GDT_Float32)
+    if output_dataset is None:
+        print("❌ Error: No se pudo crear el archivo de salida.")
+        return ""
 
     output_dataset.SetGeoTransform(base_transform)
     output_dataset.SetProjection(base_crs)
     out_band = output_dataset.GetRasterBand(1)
     out_band.SetNoDataValue(255)
 
-    #  Iterar por cada capa para aplicar multiplicador y sumar
-    for i in range(len(aligned_paths)):
-        input_path = aligned_paths[i]
-        multiplier = multipliers[i]
+    #  Procesamiento en bloques
+    for y in range(0, base_height, BLOCK_SIZE):
+        block_height = min(BLOCK_SIZE, base_height - y)  # Evita salir del tamaño real
 
-        dataset = gdal.Open(input_path)
-        if not dataset:
-            print(f" ERROR: No se pudo abrir el archivo raster {input_path}.")
-            continue
+        for x in range(0, base_width, BLOCK_SIZE):
+            block_width = min(BLOCK_SIZE, base_width - x)
 
-        band = dataset.GetRasterBand(1)
-        original_nodata_value = band.GetNoDataValue() or 255
+            # Crear bloque vacío
+            sum_block = np.zeros((block_height, block_width), dtype=np.float32)
 
-        for row in range(base_height):
-            array = band.ReadAsArray(0, row, base_width, 1)
-            if array is None:
-                raise ValueError(f"Error: No se pudo leer los datos de la banda en {input_path}")
+            for i, input_path in enumerate(aligned_paths):
+                multiplier = multipliers[i]
+                dataset = gdal.Open(input_path)
+                if not dataset:
+                    print(f"❌ Error al abrir {input_path}.")
+                    continue
 
-            array = array.astype(np.float32)
+                band = dataset.GetRasterBand(1)
+                original_nodata_value = band.GetNoDataValue() or 255
 
+                array = band.ReadAsArray(x, y, block_width, block_height)
+                if array is None:
+                    continue
 
-            if np.all(array == original_nodata_value):
-                raise ValueError(f"Error: Todos los valores en {input_path} son NoData.")
+                array = array.astype(np.float32)
 
-            processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
+                # Multiplicamos evitando modificar valores NoData
+                processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
 
+                # Sumar valores válidos
+                sum_block = np.where((sum_block == 255) | (processed_array == 255), 255, sum_block + processed_array)
 
-            # Leer la fila actual de salida y sumar
-            existing_row = out_band.ReadAsArray(0, row, base_width, 1)
-            sum_row = np.where((existing_row == 255) | (processed_array == 255), 255, existing_row + processed_array)
+            # Escribir el bloque en el archivo de salida
+            out_band.WriteArray(sum_block, x, y)
 
-            # Guardar la fila procesada en el TIFF de salida
-            out_band.WriteArray(sum_row, 0, row)
-
-        dataset = None  # Cerrar archivo GDAL después de procesarlo
-
-    #  Calcular estadísticas finales
     out_band.ComputeStatistics(False)
-
-    #  Cerrar datasets para liberar memoria
     out_band, output_dataset = None, None
 
-    print(f"✅ Proceso completado. Raster generado en: {output_path}")
+    print(f"✅ Raster generado en: {output_path}")
     return output_path
