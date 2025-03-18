@@ -15,9 +15,13 @@ UPLOAD_FOLDER_FINAL = "app/temp"
 #  Carpeta temporal para almacenar capas de entrada antes del procesamiento
 UPLOAD_FOLDER_TEMP = "app/temp_processing"
 
+RESULT_FOLDER = "app/result"  # Carpeta donde se guardará la capa final
+    
+
 #  Asegurar que ambas carpetas existen al iniciar el servidor
 os.makedirs(UPLOAD_FOLDER_FINAL, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER_TEMP, exist_ok=True)
+os.makedirs(RESULT_FOLDER, exist_ok=True)  # Asegurar que exista
 
 
 @router.post("/process_rasters/")
@@ -103,6 +107,20 @@ async def clean_temp_folder():
     else:
         return JSONResponse({"error": "La carpeta temp no existe."})
     
+@router.delete("/clean_result/")
+async def clean_temp_folder():
+    """
+     Endpoint para eliminar manualmente los archivos de la carpeta `result/`.
+
+    Se usa cuando el frontend envía una solicitud para limpiar los archivos generados.
+    """
+    if os.path.exists(RESULT_FOLDER):
+        shutil.rmtree(RESULT_FOLDER)  # Borra la carpeta `temp/` y su contenido
+        os.makedirs(RESULT_FOLDER)  # Vuelve a crear la carpeta vacía
+        return JSONResponse({"message": "Carpeta result eliminada con éxito."})
+    else:
+        return JSONResponse({"error": "La carpeta result no existe."})
+    
 @router.post("/combine_stored_rasters/")
 async def combine_stored_rasters(
     multipliers: str = Form(...),
@@ -118,8 +136,7 @@ async def combine_stored_rasters(
 
     # 📌 Definir carpetas
     TEMP_FOLDER = "app/temp"  # Carpeta donde ya están almacenadas las 7 capas
-    RESULT_FOLDER = "app/result"  # Carpeta donde se guardará la capa final
-    os.makedirs(RESULT_FOLDER, exist_ok=True)  # Asegurar que exista
+  
 
     # 📌 Obtener las 7 capas de `temp/`
     raster_files = sorted([os.path.join(TEMP_FOLDER, f) for f in os.listdir(TEMP_FOLDER) if f.endswith(".tif")])
