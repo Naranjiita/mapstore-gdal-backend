@@ -4,6 +4,7 @@ from typing import List
 import os
 import shutil
 from app.services.process_rasters import process_rasters  # Importamos la nueva función de procesamiento
+from app.services.upload_geonetwork import upload_geonetwork as upload_to_geonetwork_service
 import zipfile
 import tempfile
 
@@ -209,3 +210,14 @@ async def download_all_temp():
 
     # Enviar el ZIP generado
     return FileResponse(zip_path, media_type="application/zip", filename="all_rasters.zip")
+
+
+@router.get("/upload_geonetwork/")
+async def upload_geonetwork(xml_file: UploadFile = File(...)):
+    """
+    Recibe un archivo XML desde el frontend y lo sube a GeoNetwork.
+    """
+    return await upload_to_geonetwork_service(xml_file)
+    
+
+

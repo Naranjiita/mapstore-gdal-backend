@@ -1,8 +1,6 @@
 from fastapi import FastAPI
 from app.routes import raster
 from fastapi.middleware.cors import CORSMiddleware
-import signal
-import asyncio
 
 app = FastAPI(title="MapStore GDAL Backend")
 
