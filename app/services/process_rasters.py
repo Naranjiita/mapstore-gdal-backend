@@ -87,7 +87,7 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     print(f"✅ Raster generado en: {output_path}")
     return output_path
 
-def get_bbox_4326(file_name: str = Query(..., description="Nombre del archivo sin extensión .tif")):
+async def get_bbox_4326(file_name: str = Query(..., description="Nombre del archivo sin extensión .tif")):
     
     file_path = os.path.join(RESULT_FOLDER, f"{file_name}.tif")
 

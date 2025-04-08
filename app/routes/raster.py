@@ -225,5 +225,5 @@ async def get_bbox_4326(file_name: str = Query(..., description="Nombre del arch
     """
     📌 Devuelve el bounding box en EPSG:4326 para un archivo .tif guardado en `result/`.
     """
-    return get_bbox_4326(file_name)
+    return await get_bbox_4326(file_name)
 
