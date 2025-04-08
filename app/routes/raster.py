@@ -212,7 +212,7 @@ async def download_all_temp():
     return FileResponse(zip_path, media_type="application/zip", filename="all_rasters.zip")
 
 
-@router.get("/upload_geonetwork/")
+@router.post("/upload_geonetwork/")
 async def upload_geonetwork(xml_file: UploadFile = File(...)):
     """
     Recibe un archivo XML desde el frontend y lo sube a GeoNetwork.
