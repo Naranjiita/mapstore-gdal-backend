@@ -87,8 +87,9 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     print(f"✅ Raster generado en: {output_path}")
     return output_path
 
-async def get_bbox_4326(file_name: str = Query(..., description="Nombre del archivo sin extensión .tif")):
-    
+def compute_bbox_4326(file_name: str):
+
+    RESULT_FOLDER = "app/result"
     file_path = os.path.join(RESULT_FOLDER, f"{file_name}.tif")
 
     if not os.path.exists(file_path):
@@ -96,6 +97,9 @@ async def get_bbox_4326(file_name: str = Query(..., description="Nombre del arch
 
     try:
         ds = gdal.Open(file_path)
+        if ds is None:
+            return JSONResponse(status_code=500, content={"error": "No se pudo abrir el archivo con GDAL."})
+
         gt = ds.GetGeoTransform()
         width = ds.RasterXSize
         height = ds.RasterYSize
@@ -106,7 +110,6 @@ async def get_bbox_4326(file_name: str = Query(..., description="Nombre del arch
         x_max = gt[0] + width * gt[1]
         y_min = gt[3] + height * gt[5]
 
-        # Crear puntos de las esquinas
         ring_coords = [
             (x_min, y_min),
             (x_max, y_min),
@@ -114,7 +117,7 @@ async def get_bbox_4326(file_name: str = Query(..., description="Nombre del arch
             (x_min, y_max)
         ]
 
-        # Reproyectar al EPSG:4326
+        # Reproyección a EPSG:4326
         source = osr.SpatialReference()
         source.ImportFromWkt(ds.GetProjection())
         target = osr.SpatialReference()
@@ -126,7 +129,6 @@ async def get_bbox_4326(file_name: str = Query(..., description="Nombre del arch
         lons = [p[0] for p in reproj_coords]
         lats = [p[1] for p in reproj_coords]
 
-        # Bounding box reproyectado
         bbox_4326 = [min(lons), min(lats), max(lons), max(lats)]
 
         return JSONResponse(content={
@@ -134,5 +136,6 @@ async def get_bbox_4326(file_name: str = Query(..., description="Nombre del arch
             "bbox_4326": bbox_4326,
             "epsg": 4326
         })
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

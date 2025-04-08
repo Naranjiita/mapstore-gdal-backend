@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 import os
 import shutil
-from app.services.process_rasters import process_rasters, get_bbox_4326 
+from app.services.process_rasters import process_rasters, compute_bbox_4326 
 from app.services.upload_geonetwork import upload_geonetwork as upload_to_geonetwork_service
 import zipfile
 import tempfile
@@ -225,5 +225,5 @@ async def get_bbox_4326(file_name: str = Query(..., description="Nombre del arch
     """
     📌 Devuelve el bounding box en EPSG:4326 para un archivo .tif guardado en `result/`.
     """
-    return await get_bbox_4326(file_name)
+    return  compute_bbox_4326(file_name)
 
