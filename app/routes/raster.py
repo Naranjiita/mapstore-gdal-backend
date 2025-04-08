@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 import os
 import shutil
-from app.services.process_rasters import process_rasters  # Importamos la nueva función de procesamiento
+from app.services.process_rasters import process_rasters, get_bbox_4326 
 from app.services.upload_geonetwork import upload_geonetwork as upload_to_geonetwork_service
 import zipfile
 import tempfile
@@ -218,6 +218,12 @@ async def upload_geonetwork(xml_file: UploadFile = File(...)):
     Recibe un archivo XML desde el frontend y lo sube a GeoNetwork.
     """
     return await upload_to_geonetwork_service(xml_file)
-    
 
+
+@router.get("/get_bbox_4326/")
+async def get_bbox_4326(file_name: str = Query(..., description="Nombre del archivo sin extensión .tif")):
+    """
+    📌 Devuelve el bounding box en EPSG:4326 para un archivo .tif guardado en `result/`.
+    """
+    return get_bbox_4326(file_name)
 

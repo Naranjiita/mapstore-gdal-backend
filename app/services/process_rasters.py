@@ -1,10 +1,14 @@
-from osgeo import gdal
+from osgeo import gdal,osr
 import numpy as np
 import os
 from typing import List
 from app.services.gdal_operations import check_and_align_rasters
+from fastapi import APIRouter, Query
+from fastapi.responses import JSONResponse
 
 BLOCK_SIZE = 256  # Tamaño de bloque para procesamiento en memoria
+
+RESULT_FOLDER = "app/result"
 
 def process_rasters(input_paths: List[str], multipliers: List[float], output_path: str) -> str:
     if len(input_paths) != len(multipliers):
@@ -82,3 +86,53 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
 
     print(f"✅ Raster generado en: {output_path}")
     return output_path
+
+def get_bbox_4326(file_name: str = Query(..., description="Nombre del archivo sin extensión .tif")):
+    
+    file_path = os.path.join(RESULT_FOLDER, f"{file_name}.tif")
+
+    if not os.path.exists(file_path):
+        return JSONResponse(status_code=404, content={"error": f"El archivo {file_name}.tif no existe en {RESULT_FOLDER}."})
+
+    try:
+        ds = gdal.Open(file_path)
+        gt = ds.GetGeoTransform()
+        width = ds.RasterXSize
+        height = ds.RasterYSize
+
+        # Coordenadas en sistema original
+        x_min = gt[0]
+        y_max = gt[3]
+        x_max = gt[0] + width * gt[1]
+        y_min = gt[3] + height * gt[5]
+
+        # Crear puntos de las esquinas
+        ring_coords = [
+            (x_min, y_min),
+            (x_max, y_min),
+            (x_max, y_max),
+            (x_min, y_max)
+        ]
+
+        # Reproyectar al EPSG:4326
+        source = osr.SpatialReference()
+        source.ImportFromWkt(ds.GetProjection())
+        target = osr.SpatialReference()
+        target.ImportFromEPSG(4326)
+
+        transform = osr.CoordinateTransformation(source, target)
+        reproj_coords = [transform.TransformPoint(x, y) for x, y in ring_coords]
+
+        lons = [p[0] for p in reproj_coords]
+        lats = [p[1] for p in reproj_coords]
+
+        # Bounding box reproyectado
+        bbox_4326 = [min(lons), min(lats), max(lons), max(lats)]
+
+        return JSONResponse(content={
+            "file_name": f"{file_name}.tif",
+            "bbox_4326": bbox_4326,
+            "epsg": 4326
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
