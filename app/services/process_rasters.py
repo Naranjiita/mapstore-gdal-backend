@@ -77,6 +77,11 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
 
                 # Sumar valores válidos
                 sum_block = np.where((sum_block == 255) | (processed_array == 255), 255, sum_block + processed_array)
+                #Agregado
+                sum_block = np.where(np.isinf(sum_block) | np.isnan(sum_block), 255, sum_block)
+
+
+            print(f"🧩 Block ({x},{y}) stats: min={np.nanmin(sum_block)}, max={np.nanmax(sum_block)}, unique={np.unique(sum_block)}")
 
             # Escribir el bloque en el archivo de salida
             out_band.WriteArray(sum_block, x, y)

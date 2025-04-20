@@ -34,7 +34,12 @@ def check_and_align_rasters(input_paths: List[str]) -> List[str]:
         if not ds:
             print(f"❌ Error al abrir {path}")
             continue
-
+        # 👇 Agrega aquí la impresión de estadísticas
+        band = ds.GetRasterBand(1)
+        array = band.ReadAsArray()
+        nodata = band.GetNoDataValue()
+        print(f"📊 Stats de {path}: min={np.min(array)}, max={np.max(array)}, nodata={nodata}")
+        #############
         proj = ds.GetProjection()
         width, height = ds.RasterXSize, ds.RasterYSize
 
