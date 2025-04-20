@@ -11,6 +11,8 @@ BLOCK_SIZE = 256  # Tamaño de bloque para procesamiento en memoria
 RESULT_FOLDER = "app/result"
 
 def process_rasters(input_paths: List[str], multipliers: List[float], output_path: str) -> str:
+    NODATA_VALUE = 255.0
+
     if len(input_paths) != len(multipliers):
         print("❌ Error: Listas de archivos y multiplicadores deben tener la misma longitud.")
         return ""
@@ -31,10 +33,8 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     base_height = base_dataset.RasterYSize
 
     driver = gdal.GetDriverByName('GTiff')
-    # Asegurar que la carpeta de salida existe
     output_directory = os.path.dirname(output_path)
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory, exist_ok=True)
+    os.makedirs(output_directory, exist_ok=True)
 
     output_dataset = driver.Create(output_path, base_width, base_height, 1, gdal.GDT_Float32)
     if output_dataset is None:
@@ -44,16 +44,12 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
     output_dataset.SetGeoTransform(base_transform)
     output_dataset.SetProjection(base_crs)
     out_band = output_dataset.GetRasterBand(1)
-    out_band.SetNoDataValue(255)
+    out_band.SetNoDataValue(NODATA_VALUE)
 
-    #  Procesamiento en bloques
     for y in range(0, base_height, BLOCK_SIZE):
-        block_height = min(BLOCK_SIZE, base_height - y)  # Evita salir del tamaño real
-
+        block_height = min(BLOCK_SIZE, base_height - y)
         for x in range(0, base_width, BLOCK_SIZE):
             block_width = min(BLOCK_SIZE, base_width - x)
-
-            # Crear bloque vacío
             sum_block = np.zeros((block_height, block_width), dtype=np.float32)
 
             for i, input_path in enumerate(aligned_paths):
@@ -64,12 +60,9 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
                     continue
 
                 band = dataset.GetRasterBand(1)
-                #original_nodata_value = band.GetNoDataValue() or 255
-                #Cambio 
-                original_nodata_value = band.GetNoDataValue()
-                if original_nodata_value is None:
-                    original_nodata_value = 255  # fallback si no tiene NoDataValue
-
+                nodata = band.GetNoDataValue()
+                if nodata is None:
+                    nodata = NODATA_VALUE
 
                 array = band.ReadAsArray(x, y, block_width, block_height)
                 if array is None:
@@ -77,26 +70,28 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
 
                 array = array.astype(np.float32)
 
-                # Multiplicamos evitando modificar valores NoData
-                processed_array = np.where(array == original_nodata_value, original_nodata_value, array * multiplier)
+                # Reemplazar cualquier valor NoData extraño por 255
+                array[np.isinf(array)] = NODATA_VALUE
+                array[np.isnan(array)] = NODATA_VALUE
+                array[array == nodata] = NODATA_VALUE
 
-                # Sumar valores válidos
-                sum_block = np.where((sum_block == 255) | (processed_array == 255), 255, sum_block + processed_array)
-                #Agregado -Eliminar valores ilegales
-                sum_block = np.where(np.isinf(sum_block) | np.isnan(sum_block), original_nodata_value, sum_block)
+                # Máscara de valores válidos
+                valid_mask = array != NODATA_VALUE
 
+                processed_array = np.full_like(array, NODATA_VALUE)
+                processed_array[valid_mask] = array[valid_mask] * multiplier
 
+                sum_block[valid_mask] += processed_array[valid_mask]
+                sum_block[~valid_mask] = NODATA_VALUE
 
             print(f"🧩 Block ({x},{y}) stats: min={np.nanmin(sum_block)}, max={np.nanmax(sum_block)}, unique={np.unique(sum_block)}")
-
-            # Escribir el bloque en el archivo de salida
             out_band.WriteArray(sum_block, x, y)
 
     out_band.ComputeStatistics(False)
     out_band, output_dataset = None, None
-
     print(f"✅ Raster generado en: {output_path}")
     return output_path
+
 
 def compute_bbox_4326(file_name: str):
 
