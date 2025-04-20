@@ -2,22 +2,18 @@ import requests
 import urllib3
 from fastapi import UploadFile, File, APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+from app.config import GEONETWORK_USER, GEONETWORK_PASSWORD, GEONETWORK_SERVER
 
 
 async def upload_geonetwork(xml_file: UploadFile = File(...)):
 # Desactivar advertencias de certificados (solo si usas verify=False)
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-    # Datos del servidor y credenciales
-    username = 'adminuc'
-    password = 'AdmUc24*'
-    server = "https://ide.ucuenca.edu.ec"
     session = requests.Session()
 
     try:
         # Paso 1: Autenticación
-        auth_url = f"{server}/geonetwork/srv/api/me"
-        response = session.get(auth_url, auth=(username, password),
+        auth_url = f"{GEONETWORK_SERVER}/geonetwork/srv/api/me"
+        response = session.get(auth_url, auth=(GEONETWORK_USER, GEONETWORK_PASSWORD),
                                headers={'Accept': 'application/json'}, verify=False)
         xsrf_token = session.cookies.get('XSRF-TOKEN')
 

@@ -3,3 +3,5 @@
 /app/routes/__pycache__
 /app/services/__pycache__
 /app/temp
+.env
+/app/.env
