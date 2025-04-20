@@ -84,6 +84,9 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
                 sum_block[valid_mask] += processed_array[valid_mask]
                 sum_block[~valid_mask] = NODATA_VALUE
 
+            # 🔒 Forzar que todo valor > 255 sea considerado NoData
+            sum_block[sum_block > NODATA_VALUE] = NODATA_VALUE
+            
             print(f"🧩 Block ({x},{y}) stats: min={np.nanmin(sum_block)}, max={np.nanmax(sum_block)}, unique={np.unique(sum_block)}")
             out_band.WriteArray(sum_block, x, y)
 
