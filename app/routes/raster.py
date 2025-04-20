@@ -32,7 +32,7 @@ async def process_rasters_api(
     output_filename: str = Form(...)
 ):
     """
-     Endpoint para procesar rásters.
+    Endpoint para procesar rásters.
     
     1️ Recibe archivos ráster y una lista de multiplicadores.
     2️ Guarda temporalmente las capas en `temp_processing/`.
@@ -128,18 +128,18 @@ async def combine_stored_rasters(
     output_filename: str = Form(...)
 ):
     """
-    📌 Nueva funcionalidad:
+    Último Proceso de la metodología:
     - Toma automáticamente las 7 capas almacenadas en `temp/`.
     - Recibe un arreglo de 7 números decimales como multiplicadores.
     - Multiplica cada capa por su respectivo número y las suma.
     - Guarda el resultado en `result/`.
     """
 
-    # 📌 Definir carpetas
+    #  Definir carpetas
     TEMP_FOLDER = "app/temp"  # Carpeta donde ya están almacenadas las 7 capas
   
 
-    # 📌 Obtener las 7 capas de `temp/`
+    #  Obtener las 7 capas de `temp/`
     raster_files = sorted([os.path.join(TEMP_FOLDER, f) for f in os.listdir(TEMP_FOLDER) if f.endswith(".tif")])
 
     if len(raster_files) != 7:
@@ -153,10 +153,10 @@ async def combine_stored_rasters(
     if len(multipliers_list) != 7:
         return {"error": "El número de multiplicadores debe ser exactamente 7."}
 
-    # 📌 Definir ruta de salida en `result/`
+    #  Definir ruta de salida en `result/`
     output_path = os.path.join(RESULT_FOLDER, output_filename)
 
-    # 📌 Procesar rásters
+    #  Procesar rásters
     result_path = process_rasters(raster_files, multipliers_list, output_path)
 
     if result_path:
@@ -173,7 +173,7 @@ os.makedirs(RESULT_FOLDER, exist_ok=True)
 @router.get("/download_result/")
 async def download_result(file_name: str = Query(..., description="Nombre del archivo a descargar (sin extensión .tif)")):
     """
-    📌 Endpoint para descargar un raster resultante desde `result/`.
+    Endpoint para descargar un raster resultante desde `result/`.
     - Se espera solo el nombre del archivo sin la extensión `.tif`.
     - El archivo debe estar en la carpeta `result/`.
     """
