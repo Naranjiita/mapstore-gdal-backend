@@ -1,6 +1,7 @@
 from osgeo import gdal
 import os
 from typing import List
+import numpy as np
 
 ALIGNED_FOLDER = "app/temp_aligned"
 os.makedirs(ALIGNED_FOLDER, exist_ok=True)
