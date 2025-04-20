@@ -81,8 +81,11 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
                 processed_array = np.full_like(array, NODATA_VALUE)
                 processed_array[valid_mask] = array[valid_mask] * multiplier
 
-                sum_block[valid_mask] += processed_array[valid_mask]
+                # En el resto, forzar NoData si aún es cero o contaminado
                 sum_block[~valid_mask] = NODATA_VALUE
+
+                # 🛑 Limitar todos los valores válidos que superen el valor NoData
+                sum_block = np.where(sum_block >= NODATA_VALUE, NODATA_VALUE, sum_block)
 
             print(f"🧩 Block ({x},{y}) stats: min={np.nanmin(sum_block)}, max={np.nanmax(sum_block)}, unique={np.unique(sum_block)}")
             out_band.WriteArray(sum_block, x, y)
