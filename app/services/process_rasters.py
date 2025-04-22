@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 BLOCK_SIZE = 256  # Tamaño de bloque para procesamiento en memoria
 
 RESULT_FOLDER = "app/result"
+NODATA_VALUE = 255.0  # Valor usado para indicar NoData en el ráster
+
 
 def process_rasters(input_paths: List[str], multipliers: List[float], output_path: str) -> str:
     if len(input_paths) != len(multipliers):
