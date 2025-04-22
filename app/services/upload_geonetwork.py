@@ -39,7 +39,7 @@ async def upload_geonetwork(xml_file: UploadFile = File(...)):
             'file': (xml_file.filename, file_content, 'application/xml')
         }
 
-        upload_url = f"{server}/geonetwork/srv/api/records"
+        upload_url = f"{GEONETWORK_SERVER}/geonetwork/srv/api/records"
         upload_response = session.post(upload_url, headers=headers, params=params, files=files, verify=False)
 
         return JSONResponse(
