@@ -53,6 +53,7 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
             block_width = min(BLOCK_SIZE, base_width - x)
 
             sum_block = np.zeros((block_height, block_width), dtype=np.float32)
+            weight_block = np.zeros_like(sum_block, dtype=np.float32)
             valid_mask_global = np.zeros_like(sum_block, dtype=bool)
 
             for i, input_path in enumerate(aligned_paths):
@@ -76,17 +77,18 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
                 processed = np.where(valid_mask, array * multiplier, 0)
 
                 sum_block += processed
+                weight_block += np.where(valid_mask, multiplier, 0)
                 valid_mask_global |= valid_mask
 
-            # Donde no hubo ningún valor válido, marcar como NoData
-            sum_block[~valid_mask_global] = 255.0
+            # Evita división por cero
+            safe_weight = np.where(weight_block > 0, weight_block, 1)
 
-            # Forzar tope para evitar que valores válidos igualen o superen NoData
+            # Normaliza acumulado por peso
+            sum_block = np.where(valid_mask_global, sum_block / safe_weight, 255.0)
+
+            # Marca como NoData todo lo mayor o igual al umbral
             sum_block = np.where(sum_block >= 254.999, 255.0, sum_block)
 
-            # 🔒 Forzar que todo valor > 255 sea considerado NoData
-            sum_block[sum_block > NODATA_VALUE] = NODATA_VALUE
-            
             print(f"🧩 Block ({x},{y}) stats: min={np.nanmin(sum_block)}, max={np.nanmax(sum_block)}, unique={np.unique(sum_block)}")
             out_band.WriteArray(sum_block, x, y)
 
