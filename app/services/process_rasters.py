@@ -82,7 +82,7 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
             sum_block[~valid_mask_global] = 255.0
 
             # Forzar tope para evitar que valores válidos igualen o superen NoData
-            sum_block = np.where(sum_block >= 255.0, 254.999, sum_block)
+            sum_block = np.where(sum_block >= 254.999, 255.0, sum_block)
 
             # 🔒 Forzar que todo valor > 255 sea considerado NoData
             sum_block[sum_block > NODATA_VALUE] = NODATA_VALUE
@@ -95,6 +95,7 @@ def process_rasters(input_paths: List[str], multipliers: List[float], output_pat
 
     print(f"✅ Raster generado en: {output_path}")
     return output_path
+
 
 def compute_bbox_4326(file_name: str):
 
