@@ -43,23 +43,24 @@ async def process_rasters_api(
     """
 
     if not files:
-        return {"error": "Se requiere al menos un archivo raster."}
+        return {"[X] error": "Se requiere al menos un archivo raster."}
 
     try:
         multipliers_list = list(map(float, multipliers.split(",")))
     except ValueError:
-        return {"error": "Los valores de los multiplicadores deben ser números flotantes separados por comas."}
+        return {"[X] error": "Los valores de los multiplicadores deben ser números flotantes separados por comas."}
 
     if len(files) != len(multipliers_list):
-        return {"error": "El número de archivos y multiplicadores debe ser el mismo."}
+        return {"[X] error": "El número de archivos y multiplicadores debe ser el mismo."}
 
     #  Asegurar que la carpeta `temp_processing/` existe ANTES de guardar archivos
     if not os.path.exists(UPLOAD_FOLDER_TEMP):
         os.makedirs(UPLOAD_FOLDER_TEMP, exist_ok=True)
 
     input_paths = []
+    #Aquí empieza a guardar los archivos en `temp_processing/`
     for file in files:
-        file_path = os.path.join(UPLOAD_FOLDER_TEMP, file.filename)
+        file_path = os.path.join(UPLOAD_FOLDER_TEMP, file.filename) 
         with open(file_path, "wb") as f:
             f.write(await file.read())
         input_paths.append(file_path)
