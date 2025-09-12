@@ -1,12 +1,14 @@
 from fastapi import APIRouter, UploadFile, File, Form, Query, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
-from typing import List
 import os
 import shutil
 from app.services.process_rasters import process_rasters, compute_bbox_4326 
 from app.services.upload_geonetwork import upload_geonetwork as upload_to_geonetwork_service
 import zipfile
 import tempfile
+from __future__ import annotations
+from pathlib import Path
+from typing import List, Optional
 
 router = APIRouter()
 
@@ -70,7 +72,14 @@ async def process_rasters_api(
 
     #  Procesar los rásters
     try:
-        result_path = process_rasters(input_paths, multipliers_list, output_path)
+        result_path = process_rasters(
+            input_paths=input_paths,
+            multipliers=[float(x) for x in multipliers.split(",")],
+            output_path=out_path,                       # .../<job>/stage1/outputs/ACC_.tif
+            temp_dir=str(dirs["stage1_inputs"]),
+            aligned_dir=str(dirs["stage1_outputs"])     # alineados dentro del job
+        )
+
     except Exception as e:
         print(f"⚠️ Error en el procesamiento: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
