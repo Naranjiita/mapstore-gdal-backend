@@ -16,7 +16,7 @@ def _ensure_dir(p: str | Path) -> Path:
     p.mkdir(parents=True, exist_ok=True)
     return p
 
-def check_and_align_rasters(input_paths: List[str], aligned_dir: Optional[str] = None) -> List[str]:
+def check_and_align_rasters(input_paths: List[str], aligned_dir: Optional[str] ) -> List[str]:
     """
     Verifica CRS y dimensiones. Si difieren, genera versiones alineadas
     en `aligned_dir` (si se pasa) o en ALIGNED_FOLDER_DEFAULT.

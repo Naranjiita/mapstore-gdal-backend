@@ -25,8 +25,8 @@ def process_rasters(
     input_paths: List[str],
     multipliers: List[float],
     output_path: str,
-    temp_dir: Optional[str] = None,      # ⬅️ nuevo (opcional)
-    aligned_dir: Optional[str] = None    # ⬅️ nuevo (opcional)
+    temp_dir: Optional[str] = None,
+    aligned_dir: Optional[str] = None,
 ) -> str:
     """
     Suma ponderada de rásters (bloque a bloque), escribiendo en `output_path`.

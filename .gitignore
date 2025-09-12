@@ -5,3 +5,4 @@
 /app/temp
 .env
 /app/.env
+/app/pipelines/*

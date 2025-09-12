@@ -58,11 +58,13 @@ async def pipeline_start(
 
     try:
         result_path = process_rasters(
-            inputs=input_paths,
+            input_paths=input_paths,
             multipliers=multipliers_list,
             output_path=out_path,
-            aligned_dir=str(dirs["stage1_outputs"])  # o un subdir aligned si prefieres
+            aligned_dir=str(dirs["stage1_aligned"]),  # <- usa el aligned del job
         )
+
+
     except Exception as e:
         raise HTTPException(500, detail=f"Error en Stage1: {e}")
 
@@ -106,11 +108,12 @@ async def pipeline_continue(
 
     try:
         result = process_rasters(
-            inputs_7=outputs[:7],   # o el orden que definas
+            input_paths=outputs[:7],
             multipliers=mults or [1,1,1,1,1,1,1],
             output_path=final_path,
-            work_dir=str(dirs["stage2_work"])
+            aligned_dir=str(dirs["stage2_aligned"]),   
         )
+
     except Exception as e:
         raise HTTPException(500, detail=f"Error en Stage2: {e}")
 
@@ -148,3 +151,16 @@ def pipeline_delete(job_id: str):
         raise HTTPException(404, detail="job_id no encontrado")
     cleanup_job(job_id)
     return {"ok": True}
+
+    # Alias para cerrar job con POST (compatible con sendBeacon)
+@router.post("/close")
+def pipeline_close(job_id: str = Form(None)):
+    if not job_id:
+        #  JSON:
+        # data = await request.json(); job_id = data.get("job_id")
+        raise HTTPException(400, "job_id requerido")
+    if not job_root(job_id).exists():
+        return {"ok": True}  # idempotente
+    cleanup_job(job_id)
+    return {"ok": True}
+

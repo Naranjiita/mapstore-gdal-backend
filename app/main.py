@@ -4,7 +4,8 @@ from app.routes import raster, pipeline
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import GEONETWORK_USER, GEONETWORK_PASSWORD
 
-app = FastAPI(title="MapStore GDAL Backend")
+# app/main.py
+app = FastAPI(title="MapStore GDAL Backend", debug=True)  # ← temporal
 
 # Habilitar CORS
 app.add_middleware(

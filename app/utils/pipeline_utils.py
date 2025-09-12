@@ -17,20 +17,27 @@ def job_root(job_id: str) -> Path:
     return BASE_PIPE / job_id
 
 def ensure_job_dirs(job_id: str) -> Dict[str, Path]:
-    root = job_root(job_id)
-    stage1 = root / "stage1"
-    stage2 = root / "stage2"
-    final = root / "final"
-    (stage1 / "inputs").mkdir(parents=True, exist_ok=True)
-    (stage1 / "outputs").mkdir(parents=True, exist_ok=True)
-    (stage2 / "work").mkdir(parents=True, exist_ok=True)
-    final.mkdir(parents=True, exist_ok=True)
+    root = job_root(job_id)  # Path del job, p.ej. app/pipelines/<job>
+
+    s1_inputs  = root / "stage1" / "inputs"
+    s1_outputs = root / "stage1" / "outputs"
+    s1_aligned = root / "stage1" / "aligned"   # <- nuevo (por job)
+    s2_aligned = root / "stage2" / "aligned"   # <- nuevo (por job)
+    s2_work    = root / "stage2" / "work"
+    final_dir  = root / "final"
+
+    # Crear todas las carpetas necesarias
+    for p in (s1_inputs, s1_outputs, s1_aligned, s2_work, final_dir,s2_aligned):
+        p.mkdir(parents=True, exist_ok=True)
+
     return {
         "root": root,
-        "stage1_inputs": stage1 / "inputs",
-        "stage1_outputs": stage1 / "outputs",
-        "stage2_work": stage2 / "work",
-        "final_dir": final,
+        "stage1_inputs": s1_inputs,
+        "stage1_outputs": s1_outputs,
+        "stage1_aligned": s1_aligned,
+        "stage2_aligned": s2_aligned,
+        "stage2_work": s2_work,
+        "final_dir": final_dir,
     }
 
 def manifest_path(job_id: str) -> Path:
