@@ -16,7 +16,7 @@ router = APIRouter(prefix="/pipeline", tags=["Pipeline"])
 # ⚠️ Ajusta estos imports a tus funciones reales
 # La idea es: NO usar rutas globales dentro de estas funciones.
 # Deben recibir "aligned_dir/final_dir" explícitos.
-from app.processing import process_rasters_stage1, process_rasters_stage2
+from app.services.process_rasters import process_rasters
 # Donde:
 # - process_rasters_stage1(inputs: List[str], multipliers: List[float], output_path: str, aligned_dir: str) -> str
 # - process_rasters_stage2(inputs_7: List[str], multipliers: List[float], output_path: str, work_dir: str) -> str
@@ -57,7 +57,7 @@ async def pipeline_start(
     out_path = str((dirs["stage1_outputs"] / out_name).resolve())
 
     try:
-        result_path = process_rasters_stage1(
+        result_path = process_rasters(
             inputs=input_paths,
             multipliers=multipliers_list,
             output_path=out_path,
@@ -105,7 +105,7 @@ async def pipeline_continue(
     final_path = str((dirs["final_dir"] / out_name).resolve())
 
     try:
-        result = process_rasters_stage2(
+        result = process_rasters(
             inputs_7=outputs[:7],   # o el orden que definas
             multipliers=mults or [1,1,1,1,1,1,1],
             output_path=final_path,

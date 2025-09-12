@@ -1,3 +1,4 @@
+#app/main.py
 from fastapi import FastAPI
 from app.routes import raster, pipeline
 from fastapi.middleware.cors import CORSMiddleware

@@ -1,16 +1,19 @@
-from osgeo import gdal,osr
+#app/services/process_rasters.py
+from __future__ import annotations
+from osgeo import gdal, osr
+from pathlib import Path
+from typing import List, Optional
 import numpy as np
 import os
-from typing import List
+
 from app.services.gdal_operations import check_and_align_rasters
-from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse  # ← sólo si usas compute_bbox_4326 aquí
+
+gdal.UseExceptions()  # opcional pero útil
 
 BLOCK_SIZE = 256  # Tamaño de bloque para procesamiento en memoria
 
 RESULT_FOLDER = "app/result"
-MIN_VALID_VALUE =  0  # Valor mínimo válido para evitar problemas con NoData
-
 
 # Defaults para compatibilidad con el flujo actual
 UPLOAD_FOLDER_FINAL_DEFAULT = Path("app/temp")

@@ -1,10 +1,12 @@
 # app/services/gdal_operations.py
 from __future__ import annotations 
 from osgeo import gdal 
-from pathlib import Path 
+from pathlib import Path
 from typing import List, Optional 
 import os 
 import numpy as np
+
+gdal.UseExceptions()          # ← recomendado
 
 # (opcional) valor por defecto para compatibilidad
 ALIGNED_FOLDER_DEFAULT = "app/temp_aligned"

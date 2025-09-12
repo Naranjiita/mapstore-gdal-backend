@@ -1,4 +1,4 @@
-# app/pipeline_utils.py
+# app/utils/pipeline_utils.py
 from __future__ import annotations
 from pathlib import Path
 from typing import List, Dict, Any, Optional
