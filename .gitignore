@@ -1,8 +1,13 @@
 /venv
-/app/__pycache__
-/app/routes/__pycache__
-/app/services/__pycache__
-/app/temp
+/venv311
 .env
 /app/.env
+
+# Ignorar pycache y compilados Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignorar carpetas específicas
+/app/temp
 /app/pipelines/*
