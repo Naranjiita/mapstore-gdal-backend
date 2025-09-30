@@ -1,6 +1,9 @@
 # app/routers/pipeline.py
 from __future__ import annotations
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import (
+    APIRouter, UploadFile, File, Form, HTTPException,
+    Query, Request, BackgroundTasks,   # ← agrega estos
+)
 from fastapi.responses import FileResponse, JSONResponse
 from typing import List, Optional
 from pathlib import Path
@@ -13,14 +16,8 @@ from app.utils.pipeline_utils import (
 
 router = APIRouter(prefix="/pipeline", tags=["Pipeline"])
 
-# ⚠️ Ajusta estos imports a tus funciones reales
-# La idea es: NO usar rutas globales dentro de estas funciones.
-# Deben recibir "aligned_dir/final_dir" explícitos.
 from app.services.process_rasters import process_rasters
-# Donde:
-# - process_rasters_stage1(inputs: List[str], multipliers: List[float], output_path: str, aligned_dir: str) -> str
-# - process_rasters_stage2(inputs_7: List[str], multipliers: List[float], output_path: str, work_dir: str) -> str
-
+#
 gdal.UseExceptions()  # errores claros
 
 @router.post("/start")
@@ -50,7 +47,7 @@ async def pipeline_start(
     if not m:
         m = init_manifest(job, user=user)
 
-    # guardar entradas en stage1/inputs
+    # guarda entradas en stage1/inputs
     input_paths = save_uploads_chunked(dirs["stage1_inputs"], files)
 
     out_name = sanitize_filename(output_filename)
@@ -68,7 +65,7 @@ async def pipeline_start(
     except Exception as e:
         raise HTTPException(500, detail=f"Error en Stage1: {e}")
 
-    # actualizar manifest
+    # actualiza manifest
     m["status"] = "stage1_partial"
     m.setdefault("stage1", {}).setdefault("outputs", [])
     if result_path not in m["stage1"]["outputs"]:
@@ -154,13 +151,40 @@ def pipeline_delete(job_id: str):
 
     # Alias para cerrar job con POST (compatible con sendBeacon)
 @router.post("/close")
-def pipeline_close(job_id: str = Form(None)):
+async def pipeline_close(
+    request: Request,
+    background: BackgroundTasks,
+    job_id: str | None = Query(None),
+):
+    # 1) query ?job_id=...
     if not job_id:
-        #  JSON:
-        # data = await request.json(); job_id = data.get("job_id")
-        raise HTTPException(400, "job_id requerido")
-    if not job_root(job_id).exists():
-        return {"ok": True}  # idempotente
-    cleanup_job(job_id)
-    return {"ok": True}
+        # 2) form-data / x-www-form-urlencoded
+        try:
+            form = await request.form()
+            job_id = form.get("job_id") or job_id
+        except Exception:
+            pass
+    if not job_id:
+        # 3) JSON {"job_id": "..."}
+        try:
+            data = await request.json()
+            job_id = data.get("job_id") or job_id
+        except Exception:
+            pass
 
+    if not job_id:
+        raise HTTPException(400, "job_id requerido")
+
+    # idempotente + rápido: encola la limpieza y responde
+    if job_root(job_id).exists():
+        background.add_task(cleanup_job, job_id)
+
+    return {"ok": True}
+@router.get("/bbox/{job_id}")
+def pipeline_bbox(job_id: str):
+    m = read_manifest(job_id)
+    if not m: raise HTTPException(404, "job_id no encontrado")
+    fp = (m.get("stage2") or {}).get("output")
+    if not fp or not Path(fp).exists(): raise HTTPException(404, "Resultado no disponible")
+    # reutiliza tu lógica existente pero sobre 'fp'
+    return compute_bbox_4326_on_file(fp)  # implementa una variante que acepte path absoluto
