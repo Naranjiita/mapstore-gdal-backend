@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import uuid, json, shutil, time, os
+import logging, shutil
+log = logging.getLogger(__name__)
 
 BASE_PIPE = Path("app/pipelines")
 BASE_PIPE.mkdir(parents=True, exist_ok=True)
@@ -26,7 +28,7 @@ def ensure_job_dirs(job_id: str) -> Dict[str, Path]:
     s2_work    = root / "stage2" / "work"
     final_dir  = root / "final"
 
-    # Crear todas las carpetas necesarias
+    # Crea todas las carpetas necesarias
     for p in (s1_inputs, s1_outputs, s1_aligned, s2_work, final_dir,s2_aligned):
         p.mkdir(parents=True, exist_ok=True)
 
@@ -85,5 +87,18 @@ def save_uploads_chunked(dst_dir: Path, files) -> List[str]:
         paths.append(str(dst))
     return paths
 
-def cleanup_job(job_id: str) -> None:
-    shutil.rmtree(job_root(job_id), ignore_errors=True)
+
+
+def cleanup_job(job_id: str) -> bool:
+    path = job_root(job_id)
+    try:
+        if path.exists():
+            shutil.rmtree(path)
+            log.info("Job %s eliminado: %s", job_id, path)
+        else:
+            log.info("Job %s no existe: %s", job_id, path)
+        return True
+    except Exception as e:
+        log.exception("Fallo al eliminar job %s en %s: %s", job_id, path, e)
+        return False
+

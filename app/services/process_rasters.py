@@ -37,17 +37,16 @@ def process_rasters(
         print("[X]  Error: Listas de archivos y multiplicadores deben tener la misma longitud.")
         return ""
 
-    # Resolver directorios (compatibles con el código actual)
     temp_dir_p = Path(temp_dir) if temp_dir else UPLOAD_FOLDER_TEMP_DEFAULT
     aligned_p  = Path(aligned_dir) if aligned_dir else ALIGNED_DEFAULT
     out_path_p = Path(output_path)
 
-    # Asegurar carpetas que vamos a usar
+    # Asegura carpetas que vamos a usar
     temp_dir_p.mkdir(parents=True, exist_ok=True)
     aligned_p.mkdir(parents=True, exist_ok=True)
     out_path_p.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1) Alinear escribiendo en `aligned_p` (ya no carpeta global fija)
+    # 1) Alinear escribiendo en `aligned_p` 
     aligned_paths = check_and_align_rasters(input_paths, aligned_dir=str(aligned_p))
     if not aligned_paths:
         print("[X] Error: No se generaron archivos alineados.")
@@ -113,7 +112,7 @@ def process_rasters(
             # Donde no hay datos válidos, asignar NoData
             sum_block = np.where(valid_mask_global_0_7, sum_block, nodata_base)
 
-            # (opcional) Debug ruidoso: comenta si no quieres spam en logs
+            # (opcional) Debug ruidoso: Solo para verificación
             # print(f"- Block ({x},{y}) stats: min={np.nanmin(sum_block)}, max={np.nanmax(sum_block)}")
 
             out_band.WriteArray(sum_block, x, y)
