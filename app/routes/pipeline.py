@@ -82,7 +82,7 @@ async def pipeline_continue(
     output_filename: Optional[str] = Form("final_result.tif")
 ):
     """
-    Etapa 2: usa las 7 salidas de Stage1 y produce el raster final.
+    Etapa 2: usa las n salidas de Stage1 y produce el raster final.
     """
     m = read_manifest(job_id)
     if not m:
