@@ -60,7 +60,7 @@ Docker es la forma recomendada de ejecutar el backend. El `Dockerfile` construye
 ### Clonar, construir y ejecutar
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
+git clone https://github.com/Naranjiita/mapstore-gdal-backend.git
 cd mapstore-gdal-backend
 
 docker build -t mapstore-gdal-backend .
